@@ -25,6 +25,14 @@ from ..contrib.eva.alpha import calc_ic, calc_long_short_return, calc_long_short
 logger = get_module_logger("workflow", logging.INFO)
 
 
+def _wait_recorder_async_log(recorder):
+    """Wait for pending MLflow async writes before reading recorder state."""
+    async_log = getattr(recorder, "async_log", None)
+    wait = getattr(async_log, "wait", None)
+    if callable(wait):
+        wait()
+
+
 class RecordTemp:
     """
     This is the Records Template class that enables user to generate experiment results such as IC and
@@ -220,6 +228,7 @@ class ACRecordTemp(RecordTemp):
         """automatically checking the files and then run the concrete generating task"""
         if self.skip_existing:
             try:
+                _wait_recorder_async_log(self.recorder)
                 self.check(include_self=True, parents=False)
             except FileNotFoundError:
                 pass  # continue to generating metrics
@@ -228,6 +237,7 @@ class ACRecordTemp(RecordTemp):
                 return
 
         try:
+            _wait_recorder_async_log(self.recorder)
             self.check()
         except FileNotFoundError:
             logger.warning("The dependent data does not exists. Generation skipped.")
