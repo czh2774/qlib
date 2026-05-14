@@ -37,6 +37,8 @@ class JoinQuantAshareBacktestPolicy:
     deal_price: str = "close"
     open_cost: float = 0.0003
     close_cost: float = 0.0013
+    close_commission: float = 0.0003
+    close_tax: float = 0.001
     min_cost: float = 5.0
     position_type: str = "AsharePosition"
     price_limit_mode: str = "auto"
@@ -105,6 +107,21 @@ class JoinQuantAshareBacktestPolicy:
             instruments = pd.Index([""] * len(quote_df))
         thresholds = [self.limit_threshold_for_instrument(str(instrument)) for instrument in instruments]
         return pd.Series(thresholds, index=quote_df.index, dtype="float64")
+
+    def calculate_trade_cost(self, side: str, trade_value: float, *, impact_cost: float = 0.0) -> float:
+        if trade_value <= 1e-5:
+            return 0.0
+        normalized_side = side.strip().lower()
+        if normalized_side == "buy":
+            commission_rate = self.open_cost
+            tax_rate = 0.0
+        elif normalized_side == "sell":
+            commission_rate = self.close_commission
+            tax_rate = self.close_tax
+        else:
+            raise ValueError(f"Unsupported A-share trade side: {side!r}")
+        commission = max(trade_value * commission_rate, self.min_cost)
+        return commission + trade_value * (tax_rate + impact_cost)
 
 
 JOINQUANT_ASHARE_POLICY = JoinQuantAshareBacktestPolicy()
