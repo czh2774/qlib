@@ -54,33 +54,24 @@ class JoinQuantAshareBacktestPolicy:
         mode = self.price_limit_mode.strip().lower()
         if mode not in {"auto", "strict", "board_fallback"}:
             raise ValueError(
-                "price_limit_mode must be one of auto, strict, board_fallback; "
-                f"got {self.price_limit_mode!r}"
+                "price_limit_mode must be one of auto, strict, board_fallback; " f"got {self.price_limit_mode!r}"
             )
         return mode
 
-    def limit_threshold_for_instrument(
-        self, instrument: str, trade_date: object | None = None
-    ) -> float:
+    def limit_threshold_for_instrument(self, instrument: str, trade_date: object | None = None) -> float:
         normalized = normalize_ashare_instrument(instrument)
         if normalized.startswith("SH688"):
             return self.star_chinext_threshold
         if normalized.startswith("SZ300"):
             timestamp = pd.Timestamp(trade_date) if trade_date is not None else None
-            if timestamp is not None and timestamp < pd.Timestamp(
-                self.chinext_registration_start_date
-            ):
+            if timestamp is not None and timestamp < pd.Timestamp(self.chinext_registration_start_date):
                 return self.main_board_threshold
             return self.star_chinext_threshold
-        if normalized.startswith("BJ") or normalized.startswith(
-            ("SH8", "SH4", "SH9", "SZ8", "SZ4", "SZ9")
-        ):
+        if normalized.startswith("BJ") or normalized.startswith(("SH8", "SH4", "SH9", "SZ8", "SZ4", "SZ9")):
             return self.bse_threshold
         return self.main_board_threshold
 
-    def apply_price_limits(
-        self, quote_df: pd.DataFrame, *, buy_price: str, sell_price: str
-    ) -> pd.DataFrame:
+    def apply_price_limits(self, quote_df: pd.DataFrame, *, buy_price: str, sell_price: str) -> pd.DataFrame:
         frame = quote_df.copy()
         suspended = frame["$close"].isna()
         if self._has_authoritative_limit_fields(frame):
@@ -97,12 +88,8 @@ class JoinQuantAshareBacktestPolicy:
                     f"{self.up_limit_field}/{self.down_limit_field} on non-suspended rows; "
                     f"missing rows={missing_count}"
                 )
-            frame["limit_buy"] = (
-                buy_values.ge(up_limit - self.tolerance) | suspended | missing_bounds
-            )
-            frame["limit_sell"] = (
-                sell_values.le(down_limit + self.tolerance) | suspended | missing_bounds
-            )
+            frame["limit_buy"] = buy_values.ge(up_limit - self.tolerance) | suspended | missing_bounds
+            frame["limit_sell"] = sell_values.le(down_limit + self.tolerance) | suspended | missing_bounds
             return frame
 
         if self.normalized_mode() == "strict":
@@ -117,10 +104,7 @@ class JoinQuantAshareBacktestPolicy:
         return frame
 
     def _has_authoritative_limit_fields(self, quote_df: pd.DataFrame) -> bool:
-        return (
-            self.up_limit_field in quote_df.columns
-            and self.down_limit_field in quote_df.columns
-        )
+        return self.up_limit_field in quote_df.columns and self.down_limit_field in quote_df.columns
 
     def _board_threshold_series(self, quote_df: pd.DataFrame) -> pd.Series:
         instruments = self._quote_axis_values(quote_df, "instrument")
@@ -131,9 +115,7 @@ class JoinQuantAshareBacktestPolicy:
         ]
         return pd.Series(thresholds, index=quote_df.index, dtype="float64")
 
-    def _quote_axis_values(
-        self, quote_df: pd.DataFrame, name: str, default: object = ""
-    ) -> pd.Index:
+    def _quote_axis_values(self, quote_df: pd.DataFrame, name: str, default: object = "") -> pd.Index:
         if isinstance(quote_df.index, pd.MultiIndex) and name in quote_df.index.names:
             return quote_df.index.get_level_values(name)
         if quote_df.index.name == name:
@@ -142,9 +124,7 @@ class JoinQuantAshareBacktestPolicy:
             return pd.Index(quote_df[name])
         return pd.Index([default] * len(quote_df))
 
-    def calculate_trade_cost(
-        self, side: str, trade_value: float, *, impact_cost: float = 0.0
-    ) -> float:
+    def calculate_trade_cost(self, side: str, trade_value: float, *, impact_cost: float = 0.0) -> float:
         if trade_value <= 1e-5:
             return 0.0
         normalized_side = side.strip().lower()
@@ -184,9 +164,7 @@ def normalize_ashare_instrument(instrument: str) -> str:
     return raw
 
 
-def joinquant_ashare_exchange_kwargs(
-    *, strict_price_limit: bool = True
-) -> dict[str, Any]:
+def joinquant_ashare_exchange_kwargs(*, strict_price_limit: bool = True) -> dict[str, Any]:
     """Return an Exchange kwargs preset aligned with JoinQuant stock costs."""
 
     cost_options = JOINQUANT_ASHARE_POLICY.cost_options()
@@ -202,16 +180,12 @@ def joinquant_ashare_exchange_kwargs(
     }
 
 
-def joinquant_ashare_backtest_kwargs(
-    *, strict_price_limit: bool = True
-) -> dict[str, Any]:
+def joinquant_ashare_backtest_kwargs(*, strict_price_limit: bool = True) -> dict[str, Any]:
     """Return top-level backtest kwargs for JoinQuant-style A-share stocks."""
 
     return {
         "pos_type": JOINQUANT_ASHARE_POLICY.position_type,
-        "exchange_kwargs": joinquant_ashare_exchange_kwargs(
-            strict_price_limit=strict_price_limit
-        ),
+        "exchange_kwargs": joinquant_ashare_exchange_kwargs(strict_price_limit=strict_price_limit),
     }
 
 
