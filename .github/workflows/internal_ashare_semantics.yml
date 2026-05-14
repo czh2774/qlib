@@ -68,7 +68,7 @@ jobs:
 
       - name: Check formatting
         run: |
-          python -m black --check \
+          python -m black -l 120 --check \
             qlib/backtest/ashare_semantics.py \
             tests/backtest/test_ashare_semantics.py
 
