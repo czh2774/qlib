@@ -133,6 +133,36 @@ def test_joinquant_ashare_policy_charges_sell_tax_outside_min_commission() -> No
     assert policy.calculate_trade_cost("sell", 0.0) == pytest.approx(0.0)
 
 
+def test_joinquant_ashare_exchange_kwargs_expose_split_cost_policy_options() -> None:
+    kwargs = ashare_semantics.joinquant_ashare_exchange_kwargs()
+    cost_options = kwargs["ashare_limit_options"]
+
+    assert kwargs["open_cost"] == pytest.approx(0.0003)
+    assert kwargs["close_cost"] == pytest.approx(0.0013)
+    assert kwargs["min_cost"] == pytest.approx(5.0)
+    assert cost_options == {
+        "open_cost": pytest.approx(0.0003),
+        "close_commission": pytest.approx(0.0003),
+        "close_tax": pytest.approx(0.001),
+        "min_cost": pytest.approx(5.0),
+    }
+
+
+def test_exchange_joinquant_ashare_cost_helper_preserves_split_sell_tax() -> None:
+    from qlib.backtest.exchange import Exchange, Order
+
+    exchange = object.__new__(Exchange)
+    exchange._joinquant_ashare_policy = ashare_semantics.build_joinquant_ashare_policy()
+    exchange.min_cost = 5.0
+
+    assert exchange._calculate_trade_cost(Order.SELL, 1_000.0, 0.0013, 0.0) == pytest.approx(6.0)
+    assert exchange._calculate_trade_cost(Order.SELL, 100_000.0, 0.0013, 0.0) == pytest.approx(130.0)
+
+    exchange._joinquant_ashare_policy = None
+    assert exchange._calculate_trade_cost(Order.SELL, 1_000.0, 0.0013, 0.0) == pytest.approx(5.0)
+    assert exchange._calculate_trade_cost(Order.SELL, 0.0, 0.0013, 0.0) == pytest.approx(0.0)
+
+
 def test_exchange_source_delegates_joinquant_ashare_limits_to_policy() -> None:
     source = EXCHANGE_PATH.read_text(encoding="utf-8")
 

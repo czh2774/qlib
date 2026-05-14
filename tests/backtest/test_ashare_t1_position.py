@@ -134,3 +134,5 @@ def test_joinquant_ashare_backtest_kwargs_enable_ashare_position() -> None:
     assert kwargs["pos_type"] == "AsharePosition"
     assert kwargs["exchange_kwargs"]["limit_threshold"] == "joinquant_ashare"
     assert np.isclose(kwargs["exchange_kwargs"]["open_cost"], 0.0003)
+    assert np.isclose(kwargs["exchange_kwargs"]["ashare_limit_options"]["close_commission"], 0.0003)
+    assert np.isclose(kwargs["exchange_kwargs"]["ashare_limit_options"]["close_tax"], 0.001)
