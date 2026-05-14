@@ -11,7 +11,9 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 MODULE_PATH = REPO_ROOT / "qlib/backtest/ashare_semantics.py"
 EXCHANGE_PATH = REPO_ROOT / "qlib/backtest/exchange.py"
 
-spec = importlib.util.spec_from_file_location("ashare_semantics_under_test", MODULE_PATH)
+spec = importlib.util.spec_from_file_location(
+    "ashare_semantics_under_test", MODULE_PATH
+)
 assert spec is not None and spec.loader is not None
 ashare_semantics = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = ashare_semantics
@@ -64,7 +66,9 @@ def test_joinquant_ashare_policy_uses_authoritative_up_down_limits() -> None:
         ]
     )
 
-    limited = JoinQuantAshareBacktestPolicy(price_limit_mode="strict").apply_price_limits(
+    limited = JoinQuantAshareBacktestPolicy(
+        price_limit_mode="strict"
+    ).apply_price_limits(
         frame,
         buy_price="$close",
         sell_price="$close",
@@ -92,7 +96,9 @@ def test_joinquant_ashare_strict_mode_requires_authoritative_limit_fields() -> N
         ]
     )
 
-    with pytest.raises(ValueError, match="strict price-limit mode requires provider fields"):
+    with pytest.raises(
+        ValueError, match="strict price-limit mode requires provider fields"
+    ):
         JoinQuantAshareBacktestPolicy(price_limit_mode="strict").apply_price_limits(
             frame,
             buy_price="$close",
@@ -100,7 +106,9 @@ def test_joinquant_ashare_strict_mode_requires_authoritative_limit_fields() -> N
         )
 
 
-def test_joinquant_ashare_strict_mode_allows_suspended_rows_without_limit_bounds() -> None:
+def test_joinquant_ashare_strict_mode_allows_suspended_rows_without_limit_bounds() -> (
+    None
+):
     frame = _quote_frame(
         [
             (
@@ -126,7 +134,9 @@ def test_joinquant_ashare_strict_mode_allows_suspended_rows_without_limit_bounds
         ]
     )
 
-    limited = JoinQuantAshareBacktestPolicy(price_limit_mode="strict").apply_price_limits(
+    limited = JoinQuantAshareBacktestPolicy(
+        price_limit_mode="strict"
+    ).apply_price_limits(
         frame,
         buy_price="$close",
         sell_price="$close",
@@ -137,7 +147,9 @@ def test_joinquant_ashare_strict_mode_allows_suspended_rows_without_limit_bounds
     assert bool(limited.loc[suspended_row, "limit_sell"])
 
 
-def test_joinquant_ashare_strict_mode_rejects_missing_limits_on_non_suspended_rows() -> None:
+def test_joinquant_ashare_strict_mode_rejects_missing_limits_on_non_suspended_rows() -> (
+    None
+):
     frame = _quote_frame(
         [
             (
@@ -165,21 +177,29 @@ def test_joinquant_ashare_board_fallback_uses_board_specific_thresholds() -> Non
     frame = _quote_frame(
         [
             ("SH600000", "2020-01-02", {"$close": 10.0, "$change": 0.096}),
-            ("SZ300750", "2020-01-02", {"$close": 10.0, "$change": 0.096}),
-            ("SZ300750", "2020-01-03", {"$close": 10.0, "$change": 0.196}),
+            ("SH688012", "2020-01-02", {"$close": 10.0, "$change": 0.096}),
+            ("SH688012", "2020-01-03", {"$close": 10.0, "$change": 0.196}),
+            ("SZ300750", "2020-08-21", {"$close": 10.0, "$change": 0.096}),
+            ("SZ300750", "2020-08-24", {"$close": 10.0, "$change": 0.096}),
+            ("SZ300750", "2020-08-25", {"$close": 10.0, "$change": 0.196}),
             ("BJ430047", "2020-01-02", {"$close": 10.0, "$change": 0.296}),
         ]
     )
 
-    limited = JoinQuantAshareBacktestPolicy(price_limit_mode="board_fallback").apply_price_limits(
+    limited = JoinQuantAshareBacktestPolicy(
+        price_limit_mode="board_fallback"
+    ).apply_price_limits(
         frame,
         buy_price="$close",
         sell_price="$close",
     )
 
     assert bool(limited.loc[("SH600000", pd.Timestamp("2020-01-02")), "limit_buy"])
-    assert not bool(limited.loc[("SZ300750", pd.Timestamp("2020-01-02")), "limit_buy"])
-    assert bool(limited.loc[("SZ300750", pd.Timestamp("2020-01-03")), "limit_buy"])
+    assert not bool(limited.loc[("SH688012", pd.Timestamp("2020-01-02")), "limit_buy"])
+    assert bool(limited.loc[("SH688012", pd.Timestamp("2020-01-03")), "limit_buy"])
+    assert bool(limited.loc[("SZ300750", pd.Timestamp("2020-08-21")), "limit_buy"])
+    assert not bool(limited.loc[("SZ300750", pd.Timestamp("2020-08-24")), "limit_buy"])
+    assert bool(limited.loc[("SZ300750", pd.Timestamp("2020-08-25")), "limit_buy"])
     assert bool(limited.loc[("BJ430047", pd.Timestamp("2020-01-02")), "limit_buy"])
     assert not bool(limited["limit_sell"].any())
 
@@ -216,12 +236,20 @@ def test_exchange_joinquant_ashare_cost_helper_preserves_split_sell_tax() -> Non
     exchange._joinquant_ashare_policy = ashare_semantics.build_joinquant_ashare_policy()
     exchange.min_cost = 5.0
 
-    assert exchange._calculate_trade_cost(Order.SELL, 1_000.0, 0.0013, 0.0) == pytest.approx(6.0)
-    assert exchange._calculate_trade_cost(Order.SELL, 100_000.0, 0.0013, 0.0) == pytest.approx(130.0)
+    assert exchange._calculate_trade_cost(
+        Order.SELL, 1_000.0, 0.0013, 0.0
+    ) == pytest.approx(6.0)
+    assert exchange._calculate_trade_cost(
+        Order.SELL, 100_000.0, 0.0013, 0.0
+    ) == pytest.approx(130.0)
 
     exchange._joinquant_ashare_policy = None
-    assert exchange._calculate_trade_cost(Order.SELL, 1_000.0, 0.0013, 0.0) == pytest.approx(5.0)
-    assert exchange._calculate_trade_cost(Order.SELL, 0.0, 0.0013, 0.0) == pytest.approx(0.0)
+    assert exchange._calculate_trade_cost(
+        Order.SELL, 1_000.0, 0.0013, 0.0
+    ) == pytest.approx(5.0)
+    assert exchange._calculate_trade_cost(
+        Order.SELL, 0.0, 0.0013, 0.0
+    ) == pytest.approx(0.0)
 
 
 def test_exchange_source_delegates_joinquant_ashare_limits_to_policy() -> None:
@@ -233,5 +261,9 @@ def test_exchange_source_delegates_joinquant_ashare_limits_to_policy() -> None:
     assert "is_joinquant_ashare_limit_threshold(limit_threshold)" in source
     assert "self._joinquant_ashare_policy.apply_price_limits" in source
     assert "self._joinquant_ashare_policy.calculate_trade_cost" in source
-    assert "necessary_fields.add(self._joinquant_ashare_policy.up_limit_field)" in source
-    assert "necessary_fields.add(self._joinquant_ashare_policy.down_limit_field)" in source
+    assert (
+        "necessary_fields.add(self._joinquant_ashare_policy.up_limit_field)" in source
+    )
+    assert (
+        "necessary_fields.add(self._joinquant_ashare_policy.down_limit_field)" in source
+    )
