@@ -74,11 +74,13 @@ class JoinQuantAshareBacktestPolicy:
             buy_values = pd.to_numeric(frame[buy_price], errors="coerce")
             sell_values = pd.to_numeric(frame[sell_price], errors="coerce")
             missing_bounds = up_limit.isna() | down_limit.isna()
-            if self.normalized_mode() == "strict" and missing_bounds.any():
-                missing_count = int(missing_bounds.sum())
+            missing_tradable_bounds = missing_bounds & ~suspended
+            if self.normalized_mode() == "strict" and missing_tradable_bounds.any():
+                missing_count = int(missing_tradable_bounds.sum())
                 raise ValueError(
                     "joinquant_ashare strict price-limit mode requires non-null "
-                    f"{self.up_limit_field}/{self.down_limit_field}; missing rows={missing_count}"
+                    f"{self.up_limit_field}/{self.down_limit_field} on non-suspended rows; "
+                    f"missing rows={missing_count}"
                 )
             frame["limit_buy"] = buy_values.ge(up_limit - self.tolerance) | suspended | missing_bounds
             frame["limit_sell"] = sell_values.le(down_limit + self.tolerance) | suspended | missing_bounds

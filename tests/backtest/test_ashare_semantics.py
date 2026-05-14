@@ -100,6 +100,67 @@ def test_joinquant_ashare_strict_mode_requires_authoritative_limit_fields() -> N
         )
 
 
+def test_joinquant_ashare_strict_mode_allows_suspended_rows_without_limit_bounds() -> None:
+    frame = _quote_frame(
+        [
+            (
+                "SH600000",
+                "2020-01-02",
+                {
+                    "$close": 10.0,
+                    "$change": 0.0,
+                    "$up_limit": 11.0,
+                    "$down_limit": 9.0,
+                },
+            ),
+            (
+                "SH600000",
+                "2020-01-03",
+                {
+                    "$close": None,
+                    "$change": None,
+                    "$up_limit": None,
+                    "$down_limit": None,
+                },
+            ),
+        ]
+    )
+
+    limited = JoinQuantAshareBacktestPolicy(price_limit_mode="strict").apply_price_limits(
+        frame,
+        buy_price="$close",
+        sell_price="$close",
+    )
+
+    suspended_row = ("SH600000", pd.Timestamp("2020-01-03"))
+    assert bool(limited.loc[suspended_row, "limit_buy"])
+    assert bool(limited.loc[suspended_row, "limit_sell"])
+
+
+def test_joinquant_ashare_strict_mode_rejects_missing_limits_on_non_suspended_rows() -> None:
+    frame = _quote_frame(
+        [
+            (
+                "SH600000",
+                "2020-01-02",
+                {
+                    "$close": 10.0,
+                    "$change": 0.0,
+                    "$up_limit": 11.0,
+                    "$down_limit": None,
+                },
+            ),
+        ]
+    )
+
+    with pytest.raises(ValueError, match="non-suspended rows; missing rows=1"):
+        JoinQuantAshareBacktestPolicy(price_limit_mode="strict").apply_price_limits(
+            frame,
+            buy_price="$close",
+            sell_price="$close",
+        )
+
+
 def test_joinquant_ashare_board_fallback_uses_board_specific_thresholds() -> None:
     frame = _quote_frame(
         [
