@@ -1,0 +1,88 @@
+name: Internal A-share semantics
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "qlib/backtest/ashare_semantics.py"
+      - "qlib/backtest/exchange.py"
+      - "qlib/backtest/position.py"
+      - "tests/backtest/test_ashare_semantics.py"
+      - "tests/backtest/test_ashare_t1_position.py"
+      - ".github/workflows/internal_ashare_semantics.yml"
+  push:
+    branches: [main]
+    paths:
+      - "qlib/backtest/ashare_semantics.py"
+      - "qlib/backtest/exchange.py"
+      - "qlib/backtest/position.py"
+      - "tests/backtest/test_ashare_semantics.py"
+      - "tests/backtest/test_ashare_t1_position.py"
+      - ".github/workflows/internal_ashare_semantics.yml"
+
+concurrency:
+  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.ref }}
+
+jobs:
+  ashare-backtest-semantics:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      SETUPTOOLS_SCM_PRETEND_VERSION: "0.0.0"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install focused test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install \
+            "black<26.1" \
+            filelock \
+            joblib \
+            loguru \
+            numpy \
+            packaging \
+            pandas \
+            pydantic-settings \
+            pytest \
+            python-redis-lock \
+            redis \
+            requests \
+            ruamel.yaml \
+            pyyaml \
+            scipy \
+            setuptools-scm \
+            tqdm
+
+      - name: Build Qlib Cython extensions
+        run: |
+          make prerequisite
+
+      - name: Check formatting
+        run: |
+          python -m black --check \
+            qlib/backtest/ashare_semantics.py \
+            tests/backtest/test_ashare_semantics.py
+
+      - name: Compile A-share source and tests
+        run: |
+          python -m py_compile \
+            qlib/backtest/ashare_semantics.py \
+            qlib/backtest/exchange.py \
+            qlib/backtest/position.py \
+            tests/backtest/test_ashare_semantics.py \
+            tests/backtest/test_ashare_t1_position.py
+
+      - name: Run A-share backtest semantic regressions
+        run: |
+          python -m pytest -q \
+            tests/backtest/test_ashare_semantics.py \
+            tests/backtest/test_ashare_t1_position.py
