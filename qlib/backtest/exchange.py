@@ -911,6 +911,25 @@ class Exchange:
                 max_trade_amount = (cash - self.min_cost) / trade_price
         return max_trade_amount
 
+    def _calculate_trade_cost(
+        self,
+        direction: int,
+        trade_val: float,
+        cost_ratio: float,
+        adj_cost_ratio: float,
+    ) -> float:
+        if self._joinquant_ashare_policy is not None:
+            return self._joinquant_ashare_policy.calculate_trade_cost(
+                "sell" if direction == Order.SELL else "buy",
+                trade_val,
+                impact_cost=adj_cost_ratio,
+            )
+
+        trade_cost = max(trade_val * cost_ratio, self.min_cost)
+        if trade_val <= 1e-5:
+            trade_cost = 0
+        return trade_cost
+
     def _calc_trade_info_by_order(
         self,
         order: Order,
@@ -969,10 +988,14 @@ class Exchange:
                     )
 
                 # in case of negative value of cash
-                if position.get_cash() + order.deal_amount * trade_price < max(
-                    order.deal_amount * trade_price * cost_ratio,
-                    self.min_cost,
-                ):
+                expected_trade_val = order.deal_amount * trade_price
+                expected_trade_cost = self._calculate_trade_cost(
+                    order.direction,
+                    expected_trade_val,
+                    cost_ratio,
+                    adj_cost_ratio,
+                )
+                if position.get_cash() + expected_trade_val < expected_trade_cost:
                     order.deal_amount = 0
                     self.logger.debug(f"Order clipped due to cash limitation: {order}")
 
@@ -1005,17 +1028,7 @@ class Exchange:
             raise NotImplementedError("order direction {} error".format(order.direction))
 
         trade_val = order.deal_amount * trade_price
-        if self._joinquant_ashare_policy is not None:
-            trade_cost = self._joinquant_ashare_policy.calculate_trade_cost(
-                "sell" if order.direction == Order.SELL else "buy",
-                trade_val,
-                impact_cost=adj_cost_ratio,
-            )
-        else:
-            trade_cost = max(trade_val * cost_ratio, self.min_cost)
-            if trade_val <= 1e-5:
-                # if dealing is not successful, the trade_cost should be zero.
-                trade_cost = 0
+        trade_cost = self._calculate_trade_cost(order.direction, trade_val, cost_ratio, adj_cost_ratio)
         return trade_price, trade_val, trade_cost
 
     def get_order_helper(self) -> OrderHelper:

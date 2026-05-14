@@ -123,6 +123,14 @@ class JoinQuantAshareBacktestPolicy:
         commission = max(trade_value * commission_rate, self.min_cost)
         return commission + trade_value * (tax_rate + impact_cost)
 
+    def cost_options(self) -> dict[str, float]:
+        return {
+            "open_cost": self.open_cost,
+            "close_commission": self.close_commission,
+            "close_tax": self.close_tax,
+            "min_cost": self.min_cost,
+        }
+
 
 JOINQUANT_ASHARE_POLICY = JoinQuantAshareBacktestPolicy()
 
@@ -143,14 +151,16 @@ def normalize_ashare_instrument(instrument: str) -> str:
 def joinquant_ashare_exchange_kwargs(*, strict_price_limit: bool = True) -> dict[str, Any]:
     """Return an Exchange kwargs preset aligned with JoinQuant stock costs."""
 
+    cost_options = JOINQUANT_ASHARE_POLICY.cost_options()
     return {
         "limit_threshold": JOINQUANT_ASHARE_LIMIT_THRESHOLD,
         "ashare_price_limit_mode": "strict" if strict_price_limit else "auto",
+        "ashare_limit_options": cost_options,
         "trade_unit": JOINQUANT_ASHARE_POLICY.trade_unit,
         "deal_price": JOINQUANT_ASHARE_POLICY.deal_price,
-        "open_cost": JOINQUANT_ASHARE_POLICY.open_cost,
+        "open_cost": cost_options["open_cost"],
         "close_cost": JOINQUANT_ASHARE_POLICY.close_cost,
-        "min_cost": JOINQUANT_ASHARE_POLICY.min_cost,
+        "min_cost": cost_options["min_cost"],
     }
 
 
