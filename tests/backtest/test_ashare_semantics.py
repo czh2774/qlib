@@ -123,6 +123,16 @@ def test_joinquant_ashare_board_fallback_uses_board_specific_thresholds() -> Non
     assert not bool(limited["limit_sell"].any())
 
 
+def test_joinquant_ashare_policy_charges_sell_tax_outside_min_commission() -> None:
+    policy = JoinQuantAshareBacktestPolicy()
+
+    assert policy.calculate_trade_cost("buy", 1_000.0) == pytest.approx(5.0)
+    assert policy.calculate_trade_cost("sell", 1_000.0) == pytest.approx(6.0)
+    assert policy.calculate_trade_cost("buy", 100_000.0) == pytest.approx(30.0)
+    assert policy.calculate_trade_cost("sell", 100_000.0) == pytest.approx(130.0)
+    assert policy.calculate_trade_cost("sell", 0.0) == pytest.approx(0.0)
+
+
 def test_exchange_source_delegates_joinquant_ashare_limits_to_policy() -> None:
     source = EXCHANGE_PATH.read_text(encoding="utf-8")
 
@@ -131,5 +141,6 @@ def test_exchange_source_delegates_joinquant_ashare_limits_to_policy() -> None:
     assert "ashare_limit_options" in source
     assert "is_joinquant_ashare_limit_threshold(limit_threshold)" in source
     assert "self._joinquant_ashare_policy.apply_price_limits" in source
+    assert "self._joinquant_ashare_policy.calculate_trade_cost" in source
     assert "necessary_fields.add(self._joinquant_ashare_policy.up_limit_field)" in source
     assert "necessary_fields.add(self._joinquant_ashare_policy.down_limit_field)" in source

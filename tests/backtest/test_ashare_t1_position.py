@@ -12,6 +12,14 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 ASHARE_SEMANTICS_PATH = REPO_ROOT / "qlib/backtest/ashare_semantics.py"
 POSITION_PATH = REPO_ROOT / "qlib/backtest/position.py"
 EXCHANGE_PATH = REPO_ROOT / "qlib/backtest/exchange.py"
+STUB_MODULE_NAMES = (
+    "qlib",
+    "qlib.backtest",
+    "qlib.backtest.decision",
+    "qlib.backtest.position",
+    "qlib.data",
+    "qlib.data.data",
+)
 
 
 class StubOrder:
@@ -51,8 +59,16 @@ def _install_position_stubs() -> None:
 
 
 def _load_position_module():
+    previous_modules = {name: sys.modules.get(name) for name in STUB_MODULE_NAMES}
     _install_position_stubs()
-    return _load_module("qlib.backtest.position", POSITION_PATH)
+    try:
+        return _load_module("qlib.backtest.position", POSITION_PATH)
+    finally:
+        for name, module in previous_modules.items():
+            if module is None:
+                sys.modules.pop(name, None)
+            else:
+                sys.modules[name] = module
 
 
 def test_ashare_position_keeps_intraday_buys_unsellable_until_day_commit() -> None:
