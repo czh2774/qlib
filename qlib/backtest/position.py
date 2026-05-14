@@ -130,6 +130,14 @@ class BasePosition:
         """
         raise NotImplementedError(f"Please implement the `get_stock_amount` method")
 
+    def get_sellable_amount(self, code: str) -> float:
+        """
+        get the amount of the stock available for selling.
+        Default positions have no stock-settlement delay, so the full amount is
+        sellable.
+        """
+        return self.get_stock_amount(code)
+
     def get_cash(self, include_settle: bool = False) -> float:
         """
         Parameters
@@ -242,7 +250,11 @@ class Position(BasePosition):
     }
     """
 
-    def __init__(self, cash: float = 0, position_dict: Dict[str, Union[Dict[str, float], float]] = {}) -> None:
+    def __init__(
+        self,
+        cash: float = 0,
+        position_dict: Dict[str, Union[Dict[str, float], float]] = {},
+    ) -> None:
         """Init position by cash and position_dict.
 
         Parameters
@@ -429,6 +441,9 @@ class Position(BasePosition):
     def get_stock_amount(self, code: str) -> float:
         return self.position[code]["amount"] if code in self.position else 0
 
+    def get_sellable_amount(self, code: str) -> float:
+        return self.get_stock_amount(code)
+
     def get_stock_count(self, code: str, bar: str) -> float:
         """the days the account has been hold, it may be used in some special strategies"""
         if f"count_{bar}" in self.position[code]:
@@ -500,6 +515,69 @@ class Position(BasePosition):
             self._settle_type = self.ST_NO
 
 
+class AsharePosition(Position):
+    """A-share position with T+1 sellability semantics.
+
+    Existing or end-of-day holdings are sellable. Shares bought during the
+    current trading day increase total amount immediately, but they do not
+    increase sellable amount until the day bar is committed.
+    """
+
+    SELLABLE_AMOUNT_FIELD = "sellable_amount"
+
+    def __init__(
+        self,
+        cash: float = 0,
+        position_dict: Dict[str, Union[Dict[str, float], float]] = {},
+    ) -> None:
+        super().__init__(cash=cash, position_dict=position_dict)
+        self._refresh_initial_sellable_amount()
+
+    def _refresh_initial_sellable_amount(self) -> None:
+        for stock_id in self.get_stock_list():
+            stock_position = self.position[stock_id]
+            stock_position[self.SELLABLE_AMOUNT_FIELD] = min(
+                stock_position.get(self.SELLABLE_AMOUNT_FIELD, stock_position["amount"]),
+                stock_position["amount"],
+            )
+
+    def _init_stock(self, stock_id: str, amount: float, price: float | None = None) -> None:
+        super()._init_stock(stock_id=stock_id, amount=amount, price=price)
+        self.position[stock_id][self.SELLABLE_AMOUNT_FIELD] = 0.0
+
+    def _sell_stock(self, stock_id: str, trade_val: float, cost: float, trade_price: float) -> None:
+        trade_amount = trade_val / trade_price
+        sellable_amount = self.get_sellable_amount(stock_id)
+        if trade_amount > sellable_amount and not np.isclose(trade_amount, sellable_amount):
+            raise ValueError(
+                "only have {} sellable {}, require {}".format(
+                    sellable_amount,
+                    stock_id,
+                    trade_amount,
+                ),
+            )
+        super()._sell_stock(stock_id, trade_val, cost, trade_price)
+        if stock_id in self.position:
+            self.position[stock_id][self.SELLABLE_AMOUNT_FIELD] = max(
+                0.0,
+                min(
+                    self.position[stock_id]["amount"],
+                    sellable_amount - trade_amount,
+                ),
+            )
+
+    def get_sellable_amount(self, code: str) -> float:
+        if code not in self.position:
+            return 0
+        return self.position[code].get(self.SELLABLE_AMOUNT_FIELD, self.position[code]["amount"])
+
+    def add_count_all(self, bar: str) -> None:
+        super().add_count_all(bar)
+        if bar == "day":
+            for stock_id in self.get_stock_list():
+                self.position[stock_id][self.SELLABLE_AMOUNT_FIELD] = self.position[stock_id]["amount"]
+
+
 class InfPosition(BasePosition):
     """
     Position with infinite cash and amount.
@@ -541,6 +619,9 @@ class InfPosition(BasePosition):
         return np.nan
 
     def get_stock_amount(self, code: str) -> float:
+        return np.inf
+
+    def get_sellable_amount(self, code: str) -> float:
         return np.inf
 
     def get_cash(self, include_settle: bool = False) -> float:
