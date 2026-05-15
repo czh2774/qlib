@@ -886,6 +886,9 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "rdagent_model_type_boundary_rule": (
             "rdagent_qlib_model_experiment_outputs_must_use_tabular_or_timeseries_model_type_only"
         ),
+        "rdagent_model_implementation_prompt_boundary_rule": (
+            "rdagent_qlib_model_implementation_prompts_must_treat_model_output_boundary_as_authority_over_generic_model_type_examples"
+        ),
         "rdagent_supported_model_types": ["Tabular", "TimeSeries"],
         "rdagent_forbidden_model_types": ["Graph", "XGBoost"],
         "rdagent_implementation_prompt_paths": [
@@ -2183,6 +2186,10 @@ def test_ashare_prediction_signal_contract_matches_runtime_sources() -> None:
         signal_semantics["rdagent_model_type_boundary_rule"]
         == "rdagent_qlib_model_experiment_outputs_must_use_tabular_or_timeseries_model_type_only"
     )
+    assert (
+        signal_semantics["rdagent_model_implementation_prompt_boundary_rule"]
+        == "rdagent_qlib_model_implementation_prompts_must_treat_model_output_boundary_as_authority_over_generic_model_type_examples"
+    )
     assert signal_semantics["rdagent_supported_model_types"] == ["Tabular", "TimeSeries"]
     assert signal_semantics["rdagent_forbidden_model_types"] == ["Graph", "XGBoost"]
     assert signal_semantics["rdagent_implementation_prompt_paths"] == [
@@ -2863,6 +2870,12 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
     assert (
         round_tripped["prompt_projection_payload"]["prediction_signal_semantics"]["rdagent_model_type_boundary_rule"]
         == "rdagent_qlib_model_experiment_outputs_must_use_tabular_or_timeseries_model_type_only"
+    )
+    assert (
+        round_tripped["prompt_projection_payload"]["prediction_signal_semantics"][
+            "rdagent_model_implementation_prompt_boundary_rule"
+        ]
+        == "rdagent_qlib_model_implementation_prompts_must_treat_model_output_boundary_as_authority_over_generic_model_type_examples"
     )
     assert round_tripped["prompt_projection_payload"]["prediction_signal_semantics"][
         "rdagent_supported_model_types"
