@@ -1077,10 +1077,22 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         ],
         "feedback_primary_metric": "1day.excess_return_with_cost.annualized_return",
         "sota_fallback_rule": "missing_explicit_feedback_decision_uses_feedback_primary_metric_improvement",
+        "first_round_decision_rule": (
+            "first_round_without_sota_must_not_treat_positive_icir_or_not_too_negative_performance_as_success_proxy"
+        ),
         "derived_bandit_utility_name": "drawdown_adjusted_return",
         "derived_bandit_utility_rule": "rdagent_may_compute_arr_over_abs_max_drawdown_as_derived_utility_not_qlib_metric",
         "forbidden_metric_aliases": ["sharpe", "Sharpe"],
+        "forbidden_first_round_success_proxies": [
+            "not too negative",
+            "performance is not too negative",
+            "ICIR is greater than 0",
+            "Do not set the threshold too high",
+        ],
         "prompt_metric_wording_rule": "describe_exact_qlib_metric_paths_not_generic_return_sharpe_or_and_so_on",
+        "rdagent_model_feedback_prompt_boundary_rule": (
+            "model_feedback_prompts_must_use_feedback_primary_metric_for_success_decisions_and_treat_icir_as_signal_quality_context"
+        ),
         "rdagent_source_paths": [
             "rdagent/scenarios/qlib/developer/feedback.py",
             "rdagent/scenarios/qlib/proposal/bandit.py",
@@ -2642,15 +2654,29 @@ def test_ashare_feedback_metric_contract_matches_runtime_sources() -> None:
         feedback_metric["sota_fallback_rule"]
         == "missing_explicit_feedback_decision_uses_feedback_primary_metric_improvement"
     )
+    assert (
+        feedback_metric["first_round_decision_rule"]
+        == "first_round_without_sota_must_not_treat_positive_icir_or_not_too_negative_performance_as_success_proxy"
+    )
     assert feedback_metric["derived_bandit_utility_name"] == "drawdown_adjusted_return"
     assert (
         feedback_metric["derived_bandit_utility_rule"]
         == "rdagent_may_compute_arr_over_abs_max_drawdown_as_derived_utility_not_qlib_metric"
     )
     assert feedback_metric["forbidden_metric_aliases"] == ["sharpe", "Sharpe"]
+    assert feedback_metric["forbidden_first_round_success_proxies"] == [
+        "not too negative",
+        "performance is not too negative",
+        "ICIR is greater than 0",
+        "Do not set the threshold too high",
+    ]
     assert (
         feedback_metric["prompt_metric_wording_rule"]
         == "describe_exact_qlib_metric_paths_not_generic_return_sharpe_or_and_so_on"
+    )
+    assert (
+        feedback_metric["rdagent_model_feedback_prompt_boundary_rule"]
+        == "model_feedback_prompts_must_use_feedback_primary_metric_for_success_decisions_and_treat_icir_as_signal_quality_context"
     )
     assert feedback_metric["rdagent_source_paths"] == [
         "rdagent/scenarios/qlib/developer/feedback.py",
@@ -3187,6 +3213,14 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
     assert round_tripped["prompt_projection_payload"]["feedback_metric_semantics"]["forbidden_metric_aliases"] == [
         "sharpe",
         "Sharpe",
+    ]
+    assert round_tripped["prompt_projection_payload"]["feedback_metric_semantics"][
+        "forbidden_first_round_success_proxies"
+    ] == [
+        "not too negative",
+        "performance is not too negative",
+        "ICIR is greater than 0",
+        "Do not set the threshold too high",
     ]
     assert round_tripped["prompt_projection_payload"]["benchmark_return_semantics"]["default_benchmark"] == "SH000300"
     assert (
