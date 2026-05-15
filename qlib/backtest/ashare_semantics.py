@@ -847,7 +847,14 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "bandit_metric_missing_failure": "missing_bandit_metric_path_fails_closed_without_zero_default",
         "bandit_metric_invalid_failure": "non_numeric_or_non_finite_bandit_metric_fails_closed_without_zero_default",
         "derived_bandit_utility_name": "drawdown_adjusted_return",
-        "derived_bandit_utility_rule": "rdagent_may_compute_arr_over_abs_max_drawdown_as_derived_utility_not_qlib_metric",
+        "derived_bandit_utility_rule": (
+            "rdagent_may_compute_annualized_excess_return_with_cost_over_abs_max_drawdown_as_derived_utility_not_qlib_metric"
+        ),
+        "bandit_annualized_excess_return_with_cost_field": "annualized_excess_return_with_cost",
+        "bandit_information_ratio_with_cost_field": "information_ratio_with_cost",
+        "bandit_portfolio_feature_field_rule": (
+            "bandit_portfolio_features_must_name_with_cost_benchmark_relative_excess_return_not_generic_arr_or_ir"
+        ),
         "bandit_max_drawdown_metric_path": "1day.excess_return_with_cost.max_drawdown",
         "bandit_max_drawdown_sign_rule": "qlib_sum_mode_max_drawdown_must_be_non_positive",
         "bandit_max_drawdown_zero_rule": "zero_max_drawdown_sets_drawdown_adjusted_return_to_zero",
@@ -864,8 +871,8 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "icir",
             "rank_ic",
             "rank_icir",
-            "arr",
-            "ir",
+            "annualized_excess_return_with_cost",
+            "information_ratio_with_cost",
             "drawdown_magnitude",
             "drawdown_adjusted_return",
         ],
