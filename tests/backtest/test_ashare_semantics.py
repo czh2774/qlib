@@ -2533,10 +2533,12 @@ def test_ashare_research_data_source_contract_bounds_rd_agent_factor_prompts() -
         "non_price_volume_fields_are_allowed_only_when_user_or_provider_supplies_daily_point_in_time_data"
     )
     assert source_boundary["forbidden_default_prompt_sources"] == [
+        "turnover",
         "minute_level_high_frequency_data",
         "analyst_consensus_expectation_factor",
         "unregistered_external_vendor_fields",
     ]
+    assert "turnover" not in source_boundary["primary_price_volume_fields"]
     assert (
         source_boundary["frequency_rule"]
         == "rdagent_factor_extraction_prompts_must_not_advertise_minute_or_intraday_data_as_default"

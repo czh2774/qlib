@@ -318,6 +318,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "non_price_volume_fields_are_allowed_only_when_user_or_provider_supplies_daily_point_in_time_data"
         ),
         "forbidden_default_prompt_sources": [
+            "turnover",
             "minute_level_high_frequency_data",
             "analyst_consensus_expectation_factor",
             "unregistered_external_vendor_fields",
