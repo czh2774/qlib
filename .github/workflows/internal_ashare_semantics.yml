@@ -12,10 +12,12 @@ on:
       - "qlib/backtest/position.py"
       - "qlib/backtest/report.py"
       - "qlib/backtest/utils.py"
+      - "qlib/contrib/evaluate.py"
       - "qlib/contrib/strategy/order_generator.py"
       - "qlib/contrib/strategy/signal_strategy.py"
       - "qlib/data/data.py"
       - "qlib/strategy/base.py"
+      - "qlib/workflow/record_temp.py"
       - "tests/backtest/test_ashare_semantics.py"
       - "tests/backtest/test_ashare_t1_position.py"
       - ".github/workflows/internal_ashare_semantics.yml"
@@ -30,10 +32,12 @@ on:
       - "qlib/backtest/position.py"
       - "qlib/backtest/report.py"
       - "qlib/backtest/utils.py"
+      - "qlib/contrib/evaluate.py"
       - "qlib/contrib/strategy/order_generator.py"
       - "qlib/contrib/strategy/signal_strategy.py"
       - "qlib/data/data.py"
       - "qlib/strategy/base.py"
+      - "qlib/workflow/record_temp.py"
       - "tests/backtest/test_ashare_semantics.py"
       - "tests/backtest/test_ashare_t1_position.py"
       - ".github/workflows/internal_ashare_semantics.yml"
@@ -101,10 +105,12 @@ jobs:
             qlib/backtest/position.py \
             qlib/backtest/report.py \
             qlib/backtest/utils.py \
+            qlib/contrib/evaluate.py \
             qlib/contrib/strategy/order_generator.py \
             qlib/contrib/strategy/signal_strategy.py \
             qlib/data/data.py \
             qlib/strategy/base.py \
+            qlib/workflow/record_temp.py \
             tests/backtest/test_ashare_semantics.py \
             tests/backtest/test_ashare_t1_position.py
 

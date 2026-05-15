@@ -18,10 +18,12 @@ EXECUTOR_PATH = REPO_ROOT / "qlib/backtest/executor.py"
 POSITION_PATH = REPO_ROOT / "qlib/backtest/position.py"
 REPORT_PATH = REPO_ROOT / "qlib/backtest/report.py"
 UTILS_PATH = REPO_ROOT / "qlib/backtest/utils.py"
+EVALUATE_PATH = REPO_ROOT / "qlib/contrib/evaluate.py"
 ORDER_GENERATOR_PATH = REPO_ROOT / "qlib/contrib/strategy/order_generator.py"
 SIGNAL_STRATEGY_PATH = REPO_ROOT / "qlib/contrib/strategy/signal_strategy.py"
 DATA_PATH = REPO_ROOT / "qlib/data/data.py"
 STRATEGY_BASE_PATH = REPO_ROOT / "qlib/strategy/base.py"
+RECORD_TEMP_PATH = REPO_ROOT / "qlib/workflow/record_temp.py"
 
 spec = importlib.util.spec_from_file_location("ashare_semantics_under_test", MODULE_PATH)
 assert spec is not None and spec.loader is not None
@@ -345,7 +347,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
             "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
             "but it must not redefine universe-membership, trading-calendar/data-frequency, trade unit, position, execution-price, "
             "price-adjustment, "
-            "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, executor/trade-decision lifecycle, strategy signal-to-order generation, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
+            "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, executor/trade-decision lifecycle, strategy signal-to-order generation, portfolio risk analysis, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
         ),
         "fail_closed_on_missing_contract": True,
     }
@@ -382,6 +384,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
         in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     )
     assert "redefine_strategy_signal_to_order_generation" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
+    assert "redefine_portfolio_risk_analysis_metrics" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert (
         "redefine_settlement_or_sellable_position_state" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     )
@@ -403,6 +406,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     assert "trade_indicator_semantics" in contract["rdagent_must_not_redefine"]
     assert "executor_decision_semantics" in contract["rdagent_must_not_redefine"]
     assert "strategy_order_semantics" in contract["rdagent_must_not_redefine"]
+    assert "portfolio_risk_semantics" in contract["rdagent_must_not_redefine"]
     assert "suspension_tradability_semantics" in contract["rdagent_must_not_redefine"]
     assert "execution_price_semantics" in contract["rdagent_must_not_redefine"]
     assert "price_adjustment_semantics" in contract["rdagent_must_not_redefine"]
@@ -450,6 +454,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "trade_indicator_semantics" in evidence["fingerprint_scope"]
     assert "executor_decision_semantics" in evidence["fingerprint_scope"]
     assert "strategy_order_semantics" in evidence["fingerprint_scope"]
+    assert "portfolio_risk_semantics" in evidence["fingerprint_scope"]
     assert "qlib_contract_fingerprint" in evidence["rdagent_required_evidence_fields"]
     assert (
         "runtime_surfaces.backtest_kwargs" in strict_contract["projection_contract"]["rdagent_prompt_forbidden_fields"]
@@ -724,6 +729,38 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "target_order_return_rule": "exchange_returns_sell_orders_before_buy_orders",
         "rdagent_rule": "describe_only_do_not_redefine_strategy_signal_to_order_generation",
     }
+    assert prompt_payload["portfolio_risk_semantics"] == {
+        "semantic_name": "a_share_portfolio_risk_analysis",
+        "record_authority": "qlib.workflow.record_temp.PortAnaRecord",
+        "risk_analysis_authority": "qlib.contrib.evaluate.risk_analysis",
+        "freq_authority": "qlib.utils.resam.Freq.parse",
+        "backtest_source_rule": "PortAnaRecord_runs_normal_backtest_and_reads_portfolio_metric_dict_by_freq",
+        "report_artifact_rule": "report_normal_dataframe_saved_as_portfolio_analysis_report_normal_{freq}_pkl",
+        "risk_artifact_rule": "risk_analysis_dataframe_saved_as_portfolio_analysis_port_analysis_{freq}_pkl",
+        "recorder_metric_rule": "risk_metrics_are_logged_as_{freq}.{report_type}.{risk_metric}",
+        "default_frequency_rule": "missing_risk_analysis_freq_uses_first_executor_portfolio_metric_frequency",
+        "required_report_columns": ["return", "bench", "cost", "turnover"],
+        "report_type_fields": ["excess_return_without_cost", "excess_return_with_cost"],
+        "excess_without_cost_rule": "report_return_minus_benchmark",
+        "excess_with_cost_rule": "report_return_minus_benchmark_minus_cost",
+        "risk_metric_fields": ["mean", "std", "annualized_return", "information_ratio", "max_drawdown"],
+        "default_accumulation_mode": "sum",
+        "supported_accumulation_modes": ["sum", "product"],
+        "sum_mode_rule": "qlib_sum_mode_uses_arithmetic_cumulative_return_not_geometric_compounding",
+        "day_annualization_scaler": 238,
+        "annualization_scaler_rule": "risk_analysis_parses_freq_when_N_is_absent_and_N_overrides_freq_when_present",
+        "mean_rule": "sum_mode_mean_equals_return_series_mean",
+        "std_rule": "sum_mode_std_uses_sample_standard_deviation_ddof_one",
+        "annualized_return_rule": "sum_mode_annualized_return_equals_mean_times_annualization_scaler",
+        "information_ratio_rule": "information_ratio_equals_mean_over_std_times_square_root_annualization_scaler",
+        "max_drawdown_rule": "sum_mode_max_drawdown_equals_min_of_cumulative_return_minus_running_cumulative_max",
+        "rdagent_consumed_metric_paths": [
+            "IC",
+            "1day.excess_return_without_cost.annualized_return",
+            "1day.excess_return_without_cost.max_drawdown",
+        ],
+        "rdagent_rule": "describe_only_do_not_redefine_portfolio_risk_analysis_metrics",
+    }
     assert prompt_payload["suspension_tradability_semantics"] == {
         "semantic_name": "a_share_suspension_tradability",
         "suspension_indicator_field": "$close",
@@ -908,6 +945,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "trade_indicator_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "executor_decision_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "strategy_order_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
+    assert "portfolio_risk_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert (
         "suspension_tradability_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     )
@@ -1511,6 +1549,106 @@ def test_ashare_strategy_order_contract_matches_runtime_sources() -> None:
     assert "return sell_order_list + buy_order_list" in exchange_source
 
 
+def test_ashare_portfolio_risk_contract_matches_runtime_sources() -> None:
+    contract = ashare_semantics.rdagent_ashare_semantic_contract()
+    portfolio_risk = contract["prompt_projection_payload"]["portfolio_risk_semantics"]
+    evaluate_source = EVALUATE_PATH.read_text()
+    record_temp_source = RECORD_TEMP_PATH.read_text()
+
+    assert portfolio_risk["semantic_name"] == "a_share_portfolio_risk_analysis"
+    assert portfolio_risk["record_authority"] == "qlib.workflow.record_temp.PortAnaRecord"
+    assert portfolio_risk["risk_analysis_authority"] == "qlib.contrib.evaluate.risk_analysis"
+    assert portfolio_risk["freq_authority"] == "qlib.utils.resam.Freq.parse"
+    assert (
+        portfolio_risk["backtest_source_rule"]
+        == "PortAnaRecord_runs_normal_backtest_and_reads_portfolio_metric_dict_by_freq"
+    )
+    assert (
+        portfolio_risk["report_artifact_rule"]
+        == "report_normal_dataframe_saved_as_portfolio_analysis_report_normal_{freq}_pkl"
+    )
+    assert (
+        portfolio_risk["risk_artifact_rule"]
+        == "risk_analysis_dataframe_saved_as_portfolio_analysis_port_analysis_{freq}_pkl"
+    )
+    assert portfolio_risk["recorder_metric_rule"] == "risk_metrics_are_logged_as_{freq}.{report_type}.{risk_metric}"
+    assert (
+        portfolio_risk["default_frequency_rule"]
+        == "missing_risk_analysis_freq_uses_first_executor_portfolio_metric_frequency"
+    )
+    assert portfolio_risk["required_report_columns"] == ["return", "bench", "cost", "turnover"]
+    assert portfolio_risk["report_type_fields"] == ["excess_return_without_cost", "excess_return_with_cost"]
+    assert portfolio_risk["excess_without_cost_rule"] == "report_return_minus_benchmark"
+    assert portfolio_risk["excess_with_cost_rule"] == "report_return_minus_benchmark_minus_cost"
+    assert portfolio_risk["risk_metric_fields"] == [
+        "mean",
+        "std",
+        "annualized_return",
+        "information_ratio",
+        "max_drawdown",
+    ]
+    assert portfolio_risk["default_accumulation_mode"] == "sum"
+    assert portfolio_risk["supported_accumulation_modes"] == ["sum", "product"]
+    assert portfolio_risk["sum_mode_rule"] == (
+        "qlib_sum_mode_uses_arithmetic_cumulative_return_not_geometric_compounding"
+    )
+    assert portfolio_risk["day_annualization_scaler"] == 238
+    assert (
+        portfolio_risk["annualization_scaler_rule"]
+        == "risk_analysis_parses_freq_when_N_is_absent_and_N_overrides_freq_when_present"
+    )
+    assert portfolio_risk["mean_rule"] == "sum_mode_mean_equals_return_series_mean"
+    assert portfolio_risk["std_rule"] == "sum_mode_std_uses_sample_standard_deviation_ddof_one"
+    assert (
+        portfolio_risk["annualized_return_rule"] == "sum_mode_annualized_return_equals_mean_times_annualization_scaler"
+    )
+    assert portfolio_risk["information_ratio_rule"] == (
+        "information_ratio_equals_mean_over_std_times_square_root_annualization_scaler"
+    )
+    assert portfolio_risk["max_drawdown_rule"] == (
+        "sum_mode_max_drawdown_equals_min_of_cumulative_return_minus_running_cumulative_max"
+    )
+    assert portfolio_risk["rdagent_consumed_metric_paths"] == [
+        "IC",
+        "1day.excess_return_without_cost.annualized_return",
+        "1day.excess_return_without_cost.max_drawdown",
+    ]
+    assert portfolio_risk["rdagent_rule"] == "describe_only_do_not_redefine_portfolio_risk_analysis_metrics"
+
+    assert "class PortAnaRecord(ACRecordTemp):" in record_temp_source
+    assert 'artifact_path = "portfolio_analysis"' in record_temp_source
+    assert "depend_cls = SignalRecord" in record_temp_source
+    assert '"generate_portfolio_metrics": True' in record_temp_source
+    assert "risk_analysis_freq = [self.all_freq[0]]" in record_temp_source
+    assert '"{0}{1}".format(*Freq.parse(_analysis_freq))' in record_temp_source
+    assert "portfolio_metric_dict, indicator_dict = normal_backtest(" in record_temp_source
+    assert 'artifact_objects.update({f"report_normal_{_freq}.pkl": report_normal})' in record_temp_source
+    assert 'analysis["excess_return_without_cost"] = risk_analysis(' in record_temp_source
+    assert 'report_normal["return"] - report_normal["bench"], freq=_analysis_freq' in record_temp_source
+    assert 'analysis["excess_return_with_cost"] = risk_analysis(' in record_temp_source
+    assert 'report_normal["return"] - report_normal["bench"] - report_normal["cost"]' in record_temp_source
+    assert "analysis_df = pd.concat(analysis)" in record_temp_source
+    assert 'analysis_dict = flatten_dict(analysis_df["risk"].unstack().T.to_dict())' in record_temp_source
+    assert 'self.recorder.log_metrics(**{f"{_analysis_freq}.{k}": v for k, v in analysis_dict.items()})' in (
+        record_temp_source
+    )
+    assert 'artifact_objects.update({f"port_analysis_{_analysis_freq}.pkl": analysis_df})' in record_temp_source
+
+    assert 'def risk_analysis(r, N: int = None, freq: str = "day", mode: Literal["sum", "product"] = "sum")' in (
+        evaluate_source
+    )
+    assert "Freq.NORM_FREQ_DAY: 238" in evaluate_source
+    assert "if N is None:\n        N = cal_risk_analysis_scaler(freq)" in evaluate_source
+    assert "mean = r.mean()" in evaluate_source
+    assert "std = r.std(ddof=1)" in evaluate_source
+    assert "annualized_return = mean * N" in evaluate_source
+    assert "max_drawdown = (r.cumsum() - r.cumsum().cummax()).min()" in evaluate_source
+    assert "information_ratio = mean / std * np.sqrt(N)" in evaluate_source
+    assert '"annualized_return": annualized_return' in evaluate_source
+    assert '"max_drawdown": max_drawdown' in evaluate_source
+    assert 'res = pd.Series(data).to_frame("risk")' in evaluate_source
+
+
 def test_ashare_cash_settlement_contract_matches_position_source() -> None:
     contract = ashare_semantics.rdagent_ashare_semantic_contract()
     cash_settlement = contract["prompt_projection_payload"]["cash_settlement_semantics"]
@@ -1688,6 +1826,14 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
     assert (
         round_tripped["prompt_projection_payload"]["strategy_order_semantics"]["topk_strategy_authority"]
         == "qlib.contrib.strategy.signal_strategy.TopkDropoutStrategy.generate_trade_decision"
+    )
+    assert (
+        round_tripped["prompt_projection_payload"]["portfolio_risk_semantics"]["rdagent_rule"]
+        == "describe_only_do_not_redefine_portfolio_risk_analysis_metrics"
+    )
+    assert (
+        round_tripped["prompt_projection_payload"]["portfolio_risk_semantics"]["risk_analysis_authority"]
+        == "qlib.contrib.evaluate.risk_analysis"
     )
     assert (
         round_tripped["prompt_projection_payload"]["suspension_tradability_semantics"]["rdagent_rule"]
