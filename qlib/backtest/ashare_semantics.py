@@ -848,6 +848,12 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "bandit_metric_invalid_failure": "non_numeric_or_non_finite_bandit_metric_fails_closed_without_zero_default",
         "derived_bandit_utility_name": "drawdown_adjusted_return",
         "derived_bandit_utility_rule": "rdagent_may_compute_arr_over_abs_max_drawdown_as_derived_utility_not_qlib_metric",
+        "bandit_max_drawdown_metric_path": "1day.excess_return_with_cost.max_drawdown",
+        "bandit_max_drawdown_sign_rule": "qlib_sum_mode_max_drawdown_must_be_non_positive",
+        "bandit_max_drawdown_zero_rule": "zero_max_drawdown_sets_drawdown_adjusted_return_to_zero",
+        "bandit_max_drawdown_positive_failure": (
+            "positive_max_drawdown_metric_fails_closed_without_reward_reinterpretation"
+        ),
         "bandit_feature_vector_fields": [
             "ic",
             "icir",
