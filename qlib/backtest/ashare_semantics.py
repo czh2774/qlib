@@ -3,11 +3,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from typing import Any, Mapping
 
 import pandas as pd
-
 
 JOINQUANT_ASHARE_LIMIT_THRESHOLD = "joinquant_ashare"
 JOINQUANT_ASHARE_ALIASES = frozenset(
@@ -194,7 +193,7 @@ def build_joinquant_ashare_policy(
 ) -> JoinQuantAshareBacktestPolicy:
     if options is None:
         return JOINQUANT_ASHARE_POLICY
-    allowed = set(JoinQuantAshareBacktestPolicy.__dataclass_fields__)
+    allowed = {field.name for field in fields(JoinQuantAshareBacktestPolicy)}
     unknown = sorted(str(key) for key in options if key not in allowed)
     if unknown:
         raise ValueError(f"Unknown joinquant_ashare policy options: {unknown}")
