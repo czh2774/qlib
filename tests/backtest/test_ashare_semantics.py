@@ -356,7 +356,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
             "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
             "but it must not redefine universe-membership, trading-calendar/data-frequency, trade unit, position, execution-price, "
             "price-adjustment, "
-            "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, executor/trade-decision lifecycle, strategy signal-to-order generation, supervised label, prediction signal, signal IC, portfolio risk analysis, benchmark-relative excess return, feedback metric consumption, benchmark return, universe/benchmark binding, runtime handoff template binding, research data-source, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
+            "suspension/tradability, price-limit, order-tradability, trade-window tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, executor/trade-decision lifecycle, strategy signal-to-order generation, supervised label, prediction signal, signal IC, portfolio risk analysis, benchmark-relative excess return, feedback metric consumption, benchmark return, universe/benchmark binding, runtime handoff template binding, research data-source, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
         ),
         "fail_closed_on_missing_contract": True,
     }
@@ -427,6 +427,10 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
         in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     )
     assert (
+        "redefine_trade_window_tradability_or_quote_window_aggregation"
+        in contract["semantic_boundary"]["rdagent_forbidden_actions"]
+    )
+    assert (
         "redefine_settlement_or_sellable_position_state" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     )
     assert (
@@ -457,6 +461,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     assert "universe_benchmark_binding_semantics" in contract["rdagent_must_not_redefine"]
     assert "runtime_handoff_template_binding_semantics" in contract["rdagent_must_not_redefine"]
     assert "research_data_source_semantics" in contract["rdagent_must_not_redefine"]
+    assert "trade_window_tradability_semantics" in contract["rdagent_must_not_redefine"]
     assert "suspension_tradability_semantics" in contract["rdagent_must_not_redefine"]
     assert "execution_price_semantics" in contract["rdagent_must_not_redefine"]
     assert "price_adjustment_semantics" in contract["rdagent_must_not_redefine"]
@@ -514,6 +519,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "universe_benchmark_binding_semantics" in evidence["fingerprint_scope"]
     assert "runtime_handoff_template_binding_semantics" in evidence["fingerprint_scope"]
     assert "research_data_source_semantics" in evidence["fingerprint_scope"]
+    assert "trade_window_tradability_semantics" in evidence["fingerprint_scope"]
     assert "qlib_contract_fingerprint" in evidence["rdagent_required_evidence_fields"]
     assert (
         "runtime_surfaces.backtest_kwargs" in strict_contract["projection_contract"]["rdagent_prompt_forbidden_fields"]
@@ -1118,6 +1124,24 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "rdagent_rule": "describe_only_do_not_redefine_price_limit_thresholds_or_fields",
     }
     assert relaxed_contract["prompt_projection_payload"]["price_limit_semantics"]["price_limit_mode"] == "auto"
+    assert prompt_payload["trade_window_tradability_semantics"] == {
+        "semantic_name": "a_share_trade_window_tradability",
+        "runtime_authority": "qlib.backtest.exchange.Exchange.is_stock_tradable",
+        "suspension_window_authority": "qlib.backtest.exchange.Exchange.check_stock_suspended",
+        "price_limit_window_authority": "qlib.backtest.exchange.Exchange.check_stock_limit",
+        "order_gate_authority": "qlib.backtest.exchange.Exchange.check_order",
+        "quote_membership_rule": "unknown_stock_id_is_regarded_as_suspended_and_not_tradable",
+        "suspension_window_rule": "single_missing_close_or_all_missing_close_window_blocks_trading",
+        "non_suspension_window_rule": "any_non_missing_close_in_window_keeps_suspension_gate_open",
+        "price_limit_window_rule": "limit_buy_or_limit_sell_blocks_only_when_all_rows_in_window_are_limited",
+        "buy_direction_rule": "buy_orders_consume_limit_buy_all_window_result",
+        "sell_direction_rule": "sell_orders_consume_limit_sell_all_window_result",
+        "no_direction_rule": "direction_none_blocks_when_all_rows_are_buy_limited_or_all_rows_are_sell_limited",
+        "order_check_rule": "order_direction_is_preserved_when_delegating_to_is_stock_tradable",
+        "daily_bar_rule": "daily_backtests_reduce_the_window_rules_to_the_single_queried_trading_day",
+        "joinquant_boundary_rule": "generated_research_must_not_invent_partial_window_or_intraday_tradeability_rules",
+        "rdagent_rule": "describe_only_do_not_redefine_trade_window_tradability",
+    }
     assert prompt_payload["order_tradability_semantics"] == {
         "semantic_name": "a_share_order_tradability_gate",
         "runtime_authority": "qlib.backtest.exchange.Exchange.check_order",
@@ -1262,6 +1286,10 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "research_data_source_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     )
     assert (
+        "trade_window_tradability_semantics"
+        in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
+    )
+    assert (
         "suspension_tradability_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     )
     assert "execution_price_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
@@ -1388,6 +1416,47 @@ def test_ashare_order_tradability_contract_matches_exchange_source() -> None:
     )
     assert "order.deal_amount = 0.0" in exchange_source
     assert "return 0.0, 0.0, np.nan" in exchange_source
+
+
+def test_ashare_trade_window_tradability_contract_matches_exchange_source() -> None:
+    contract = ashare_semantics.rdagent_ashare_semantic_contract()
+    tradability = contract["prompt_projection_payload"]["trade_window_tradability_semantics"]
+    exchange_source = EXCHANGE_PATH.read_text()
+
+    assert tradability["semantic_name"] == "a_share_trade_window_tradability"
+    assert tradability["runtime_authority"] == "qlib.backtest.exchange.Exchange.is_stock_tradable"
+    assert tradability["suspension_window_authority"] == "qlib.backtest.exchange.Exchange.check_stock_suspended"
+    assert tradability["price_limit_window_authority"] == "qlib.backtest.exchange.Exchange.check_stock_limit"
+    assert tradability["order_gate_authority"] == "qlib.backtest.exchange.Exchange.check_order"
+    assert tradability["quote_membership_rule"] == "unknown_stock_id_is_regarded_as_suspended_and_not_tradable"
+    assert tradability["suspension_window_rule"] == "single_missing_close_or_all_missing_close_window_blocks_trading"
+    assert tradability["non_suspension_window_rule"] == "any_non_missing_close_in_window_keeps_suspension_gate_open"
+    assert (
+        tradability["price_limit_window_rule"]
+        == "limit_buy_or_limit_sell_blocks_only_when_all_rows_in_window_are_limited"
+    )
+    assert tradability["buy_direction_rule"] == "buy_orders_consume_limit_buy_all_window_result"
+    assert tradability["sell_direction_rule"] == "sell_orders_consume_limit_sell_all_window_result"
+    assert (
+        tradability["no_direction_rule"]
+        == "direction_none_blocks_when_all_rows_are_buy_limited_or_all_rows_are_sell_limited"
+    )
+    assert tradability["order_check_rule"] == "order_direction_is_preserved_when_delegating_to_is_stock_tradable"
+    assert tradability["daily_bar_rule"] == "daily_backtests_reduce_the_window_rules_to_the_single_queried_trading_day"
+    assert tradability["rdagent_rule"] == "describe_only_do_not_redefine_trade_window_tradability"
+
+    assert 'field="limit_buy", method="all"' in exchange_source
+    assert 'field="limit_sell", method="all"' in exchange_source
+    assert "return bool(buy_limit or sell_limit)" in exchange_source
+    assert "cast(IndexData, close).isna().all()" in exchange_source
+    assert "return np.isnan(close)" in exchange_source
+    assert "return True" in exchange_source
+    assert "self.check_stock_suspended(stock_id, start_time, end_time)" in exchange_source
+    assert "self.check_stock_limit(stock_id, start_time, end_time, direction)" in exchange_source
+    assert (
+        "return self.is_stock_tradable(order.stock_id, order.start_time, order.end_time, order.direction)"
+        in exchange_source
+    )
 
 
 def test_ashare_order_fill_amount_contract_matches_exchange_source() -> None:

@@ -264,6 +264,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "universe_benchmark_binding_semantics",
         "runtime_handoff_template_binding_semantics",
         "research_data_source_semantics",
+        "trade_window_tradability_semantics",
         "suspension_tradability_semantics",
         "execution_price_semantics",
         "price_adjustment_semantics",
@@ -356,6 +357,24 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "limit_rule": "limit_flags_true_mark_direction_not_tradable",
         "decision_rule": "check_order_delegates_to_is_stock_tradable_before_deal_execution",
         "rdagent_rule": "describe_only_do_not_redefine_order_tradability_or_limit_checks",
+    }
+    trade_window_tradability_semantics = {
+        "semantic_name": "a_share_trade_window_tradability",
+        "runtime_authority": "qlib.backtest.exchange.Exchange.is_stock_tradable",
+        "suspension_window_authority": "qlib.backtest.exchange.Exchange.check_stock_suspended",
+        "price_limit_window_authority": "qlib.backtest.exchange.Exchange.check_stock_limit",
+        "order_gate_authority": "qlib.backtest.exchange.Exchange.check_order",
+        "quote_membership_rule": "unknown_stock_id_is_regarded_as_suspended_and_not_tradable",
+        "suspension_window_rule": "single_missing_close_or_all_missing_close_window_blocks_trading",
+        "non_suspension_window_rule": "any_non_missing_close_in_window_keeps_suspension_gate_open",
+        "price_limit_window_rule": "limit_buy_or_limit_sell_blocks_only_when_all_rows_in_window_are_limited",
+        "buy_direction_rule": "buy_orders_consume_limit_buy_all_window_result",
+        "sell_direction_rule": "sell_orders_consume_limit_sell_all_window_result",
+        "no_direction_rule": "direction_none_blocks_when_all_rows_are_buy_limited_or_all_rows_are_sell_limited",
+        "order_check_rule": "order_direction_is_preserved_when_delegating_to_is_stock_tradable",
+        "daily_bar_rule": "daily_backtests_reduce_the_window_rules_to_the_single_queried_trading_day",
+        "joinquant_boundary_rule": "generated_research_must_not_invent_partial_window_or_intraday_tradeability_rules",
+        "rdagent_rule": "describe_only_do_not_redefine_trade_window_tradability",
     }
     order_fill_amount_semantics = {
         "semantic_name": "a_share_order_fill_amount_gate",
@@ -868,6 +887,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "universe_benchmark_binding_semantics": universe_benchmark_binding_semantics,
             "runtime_handoff_template_binding_semantics": runtime_handoff_template_binding_semantics,
             "research_data_source_semantics": research_data_source_semantics,
+            "trade_window_tradability_semantics": trade_window_tradability_semantics,
             "rdagent_must_not_redefine": rdagent_must_not_redefine,
         }
     )
@@ -911,6 +931,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "redefine_universe_benchmark_template_binding_or_cross_alias_market_and_benchmark",
             "redefine_runtime_handoff_or_template_execution_kwargs",
             "redefine_research_data_source_availability_or_imply_unregistered_sources",
+            "redefine_trade_window_tradability_or_quote_window_aggregation",
             "redefine_settlement_or_sellable_position_state",
             "redefine_cash_settlement_or_sell_proceeds_availability",
             "redefine_cash_buying_power_or_shorting_policy",
@@ -1042,6 +1063,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "rdagent_rule": runtime_handoff_template_binding_semantics["rdagent_rule"],
         },
         "research_data_source_semantics": research_data_source_semantics,
+        "trade_window_tradability_semantics": trade_window_tradability_semantics,
         "suspension_tradability_semantics": {
             "semantic_name": "a_share_suspension_tradability",
             "suspension_indicator_field": "$close",
@@ -1174,7 +1196,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "relationship_rule": (
                 "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
                 "but it must not redefine universe-membership, trading-calendar/data-frequency, trade unit, position, execution-price, price-adjustment, "
-                "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, executor/trade-decision lifecycle, strategy signal-to-order generation, supervised label, prediction signal, signal IC, portfolio risk analysis, benchmark-relative excess return, feedback metric consumption, benchmark return, universe/benchmark binding, runtime handoff template binding, research data-source, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
+                "suspension/tradability, price-limit, order-tradability, trade-window tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, executor/trade-decision lifecycle, strategy signal-to-order generation, supervised label, prediction signal, signal IC, portfolio risk analysis, benchmark-relative excess return, feedback metric consumption, benchmark return, universe/benchmark binding, runtime handoff template binding, research data-source, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
             ),
             "fail_closed_on_missing_contract": True,
         },
@@ -1207,6 +1229,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
                 "universe_benchmark_binding_semantics",
                 "runtime_handoff_template_binding_semantics",
                 "research_data_source_semantics",
+                "trade_window_tradability_semantics",
                 "rdagent_must_not_redefine",
             ],
             "rdagent_required_evidence_fields": [
@@ -1254,6 +1277,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
                 "universe_benchmark_binding_semantics",
                 "runtime_handoff_template_binding_semantics",
                 "research_data_source_semantics",
+                "trade_window_tradability_semantics",
                 "suspension_tradability_semantics",
                 "execution_price_semantics",
                 "price_adjustment_semantics",
