@@ -351,7 +351,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
             "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
             "but it must not redefine universe-membership, trading-calendar/data-frequency, trade unit, position, execution-price, "
             "price-adjustment, "
-            "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, executor/trade-decision lifecycle, strategy signal-to-order generation, supervised label, prediction signal, signal IC, portfolio risk analysis, benchmark return, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
+            "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, executor/trade-decision lifecycle, strategy signal-to-order generation, supervised label, prediction signal, signal IC, portfolio risk analysis, feedback metric consumption, benchmark return, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
         ),
         "fail_closed_on_missing_contract": True,
     }
@@ -398,6 +398,10 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     assert "redefine_signal_ic_or_rank_ic_metrics" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert "redefine_portfolio_risk_analysis_metrics" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert (
+        "redefine_feedback_metric_paths_or_label_derived_utility_as_qlib_metric"
+        in contract["semantic_boundary"]["rdagent_forbidden_actions"]
+    )
+    assert (
         "redefine_benchmark_return_series_or_default_benchmark"
         in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     )
@@ -426,6 +430,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     assert "prediction_signal_semantics" in contract["rdagent_must_not_redefine"]
     assert "signal_ic_semantics" in contract["rdagent_must_not_redefine"]
     assert "portfolio_risk_semantics" in contract["rdagent_must_not_redefine"]
+    assert "feedback_metric_semantics" in contract["rdagent_must_not_redefine"]
     assert "benchmark_return_semantics" in contract["rdagent_must_not_redefine"]
     assert "suspension_tradability_semantics" in contract["rdagent_must_not_redefine"]
     assert "execution_price_semantics" in contract["rdagent_must_not_redefine"]
@@ -478,6 +483,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "prediction_signal_semantics" in evidence["fingerprint_scope"]
     assert "signal_ic_semantics" in evidence["fingerprint_scope"]
     assert "portfolio_risk_semantics" in evidence["fingerprint_scope"]
+    assert "feedback_metric_semantics" in evidence["fingerprint_scope"]
     assert "benchmark_return_semantics" in evidence["fingerprint_scope"]
     assert "qlib_contract_fingerprint" in evidence["rdagent_required_evidence_fields"]
     assert (
@@ -904,6 +910,45 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         ],
         "rdagent_rule": "describe_only_do_not_redefine_portfolio_risk_analysis_metrics",
     }
+    assert prompt_payload["feedback_metric_semantics"] == {
+        "semantic_name": "a_share_rd_agent_feedback_metric_consumption",
+        "signal_metric_authority": "qlib.workflow.record_temp.SigAnaRecord",
+        "portfolio_metric_authority": "qlib.workflow.record_temp.PortAnaRecord",
+        "risk_metric_authority": "qlib.contrib.evaluate.risk_analysis",
+        "prompt_metric_paths": [
+            "IC",
+            "1day.excess_return_without_cost.annualized_return",
+            "1day.excess_return_without_cost.max_drawdown",
+        ],
+        "feedback_metric_paths": [
+            "IC",
+            "1day.excess_return_with_cost.annualized_return",
+            "1day.excess_return_with_cost.max_drawdown",
+        ],
+        "bandit_metric_paths": [
+            "IC",
+            "ICIR",
+            "Rank IC",
+            "Rank ICIR",
+            "1day.excess_return_with_cost.annualized_return",
+            "1day.excess_return_with_cost.information_ratio",
+            "1day.excess_return_with_cost.max_drawdown",
+        ],
+        "feedback_primary_metric": "1day.excess_return_with_cost.annualized_return",
+        "sota_fallback_rule": "missing_explicit_feedback_decision_uses_feedback_primary_metric_improvement",
+        "derived_bandit_utility_name": "drawdown_adjusted_return",
+        "derived_bandit_utility_rule": "rdagent_may_compute_arr_over_abs_max_drawdown_as_derived_utility_not_qlib_metric",
+        "forbidden_metric_aliases": ["sharpe", "Sharpe"],
+        "prompt_metric_wording_rule": "describe_exact_qlib_metric_paths_not_generic_return_sharpe_or_and_so_on",
+        "rdagent_source_paths": [
+            "rdagent/scenarios/qlib/developer/feedback.py",
+            "rdagent/scenarios/qlib/proposal/bandit.py",
+            "rdagent/scenarios/qlib/experiment/prompts.yaml",
+            "rdagent/scenarios/qlib/prompts.yaml",
+            "rdagent/log/ui/app.py",
+        ],
+        "rdagent_rule": "consume_exact_qlib_metric_paths_and_label_derived_bandit_utility_as_non_qlib_metric",
+    }
     assert prompt_payload["benchmark_return_semantics"] == {
         "semantic_name": "a_share_benchmark_return_series",
         "default_benchmark": "SH000300",
@@ -1120,6 +1165,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "prediction_signal_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "signal_ic_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "portfolio_risk_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
+    assert "feedback_metric_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "benchmark_return_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert (
         "suspension_tradability_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
@@ -2074,6 +2120,76 @@ def test_ashare_portfolio_risk_contract_matches_runtime_sources() -> None:
     assert 'res = pd.Series(data).to_frame("risk")' in evaluate_source
 
 
+def test_ashare_feedback_metric_contract_matches_runtime_sources() -> None:
+    contract = ashare_semantics.rdagent_ashare_semantic_contract()
+    feedback_metric = contract["prompt_projection_payload"]["feedback_metric_semantics"]
+    record_temp_source = RECORD_TEMP_PATH.read_text()
+    evaluate_source = EVALUATE_PATH.read_text()
+
+    assert feedback_metric["semantic_name"] == "a_share_rd_agent_feedback_metric_consumption"
+    assert feedback_metric["signal_metric_authority"] == "qlib.workflow.record_temp.SigAnaRecord"
+    assert feedback_metric["portfolio_metric_authority"] == "qlib.workflow.record_temp.PortAnaRecord"
+    assert feedback_metric["risk_metric_authority"] == "qlib.contrib.evaluate.risk_analysis"
+    assert feedback_metric["prompt_metric_paths"] == [
+        "IC",
+        "1day.excess_return_without_cost.annualized_return",
+        "1day.excess_return_without_cost.max_drawdown",
+    ]
+    assert feedback_metric["feedback_metric_paths"] == [
+        "IC",
+        "1day.excess_return_with_cost.annualized_return",
+        "1day.excess_return_with_cost.max_drawdown",
+    ]
+    assert feedback_metric["bandit_metric_paths"] == [
+        "IC",
+        "ICIR",
+        "Rank IC",
+        "Rank ICIR",
+        "1day.excess_return_with_cost.annualized_return",
+        "1day.excess_return_with_cost.information_ratio",
+        "1day.excess_return_with_cost.max_drawdown",
+    ]
+    assert feedback_metric["feedback_primary_metric"] == "1day.excess_return_with_cost.annualized_return"
+    assert (
+        feedback_metric["sota_fallback_rule"]
+        == "missing_explicit_feedback_decision_uses_feedback_primary_metric_improvement"
+    )
+    assert feedback_metric["derived_bandit_utility_name"] == "drawdown_adjusted_return"
+    assert (
+        feedback_metric["derived_bandit_utility_rule"]
+        == "rdagent_may_compute_arr_over_abs_max_drawdown_as_derived_utility_not_qlib_metric"
+    )
+    assert feedback_metric["forbidden_metric_aliases"] == ["sharpe", "Sharpe"]
+    assert (
+        feedback_metric["prompt_metric_wording_rule"]
+        == "describe_exact_qlib_metric_paths_not_generic_return_sharpe_or_and_so_on"
+    )
+    assert feedback_metric["rdagent_source_paths"] == [
+        "rdagent/scenarios/qlib/developer/feedback.py",
+        "rdagent/scenarios/qlib/proposal/bandit.py",
+        "rdagent/scenarios/qlib/experiment/prompts.yaml",
+        "rdagent/scenarios/qlib/prompts.yaml",
+        "rdagent/log/ui/app.py",
+    ]
+    assert (
+        feedback_metric["rdagent_rule"]
+        == "consume_exact_qlib_metric_paths_and_label_derived_bandit_utility_as_non_qlib_metric"
+    )
+
+    assert "class SigAnaRecord(ACRecordTemp):" in record_temp_source
+    assert "class PortAnaRecord(ACRecordTemp):" in record_temp_source
+    assert '"IC": ic.mean()' in record_temp_source
+    assert '"ICIR": ic.mean() / ic.std()' in record_temp_source
+    assert '"Rank IC": ric.mean()' in record_temp_source
+    assert '"Rank ICIR": ric.mean() / ric.std()' in record_temp_source
+    assert 'self.recorder.log_metrics(**{f"{_analysis_freq}.{k}": v for k, v in analysis_dict.items()})' in (
+        record_temp_source
+    )
+    assert '"annualized_return": annualized_return' in evaluate_source
+    assert '"information_ratio": information_ratio' in evaluate_source
+    assert '"max_drawdown": max_drawdown' in evaluate_source
+
+
 def test_ashare_benchmark_return_contract_matches_runtime_sources() -> None:
     contract = ashare_semantics.rdagent_ashare_semantic_contract()
     benchmark_return = contract["prompt_projection_payload"]["benchmark_return_semantics"]
@@ -2344,6 +2460,14 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
         round_tripped["prompt_projection_payload"]["portfolio_risk_semantics"]["risk_analysis_authority"]
         == "qlib.contrib.evaluate.risk_analysis"
     )
+    assert (
+        round_tripped["prompt_projection_payload"]["feedback_metric_semantics"]["derived_bandit_utility_name"]
+        == "drawdown_adjusted_return"
+    )
+    assert round_tripped["prompt_projection_payload"]["feedback_metric_semantics"]["forbidden_metric_aliases"] == [
+        "sharpe",
+        "Sharpe",
+    ]
     assert round_tripped["prompt_projection_payload"]["benchmark_return_semantics"]["default_benchmark"] == "SH000300"
     assert (
         round_tripped["prompt_projection_payload"]["benchmark_return_semantics"]["rdagent_rule"]
