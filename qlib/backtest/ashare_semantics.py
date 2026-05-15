@@ -315,6 +315,9 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "daily_price_volume_derived_features",
             "provider_supplied_point_in_time_fundamental_or_industry_fields",
         ],
+        "derived_feature_source_rule": (
+            "alpha158_alpha360_derived_features_must_be_computed_only_from_registered_daily_price_volume_fields"
+        ),
         "point_in_time_rule": (
             "non_price_volume_fields_are_allowed_only_when_user_or_provider_supplies_daily_point_in_time_data"
         ),

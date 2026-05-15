@@ -2605,6 +2605,10 @@ def test_ashare_research_data_source_contract_bounds_rd_agent_factor_prompts() -
         "daily_price_volume_derived_features",
         "provider_supplied_point_in_time_fundamental_or_industry_fields",
     ]
+    assert (
+        source_boundary["derived_feature_source_rule"]
+        == "alpha158_alpha360_derived_features_must_be_computed_only_from_registered_daily_price_volume_fields"
+    )
     assert source_boundary["point_in_time_rule"] == (
         "non_price_volume_fields_are_allowed_only_when_user_or_provider_supplies_daily_point_in_time_data"
     )
