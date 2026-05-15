@@ -2632,7 +2632,7 @@ def test_ashare_research_data_source_contract_bounds_rd_agent_factor_prompts() -
     )
     assert (
         source_boundary["rdagent_prompt_obligation_rule"]
-        == "rdagent_factor_extraction_viability_relevance_and_implementation_prompts_must_apply_source_boundary_forbidden_defaults_and_turnover_distinction"
+        == "rdagent_factor_extraction_viability_relevance_duplicate_and_implementation_prompts_must_apply_source_boundary_forbidden_defaults_and_turnover_distinction"
     )
     assert source_boundary["rdagent_prompt_paths"] == [
         "rdagent/scenarios/qlib/factor_experiment_loader/prompts.yaml",
