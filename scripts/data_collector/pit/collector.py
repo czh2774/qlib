@@ -220,9 +220,16 @@ class PitCollector(BaseCollector):
 
 
 class PitNormalize(BaseNormalize):
-    def __init__(self, interval: str = "quarterly", *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        interval: str = "quarterly",
+        calendar_list: Optional[Iterable[pd.Timestamp]] = None,
+        *args,
+        **kwargs,
+    ):
         self.interval = interval
+        self._calendar_list_override = calendar_list
+        super().__init__(*args, **kwargs)
 
     def normalize(self, df: pd.DataFrame) -> pd.DataFrame:
         dt = df["period"].apply(
@@ -239,6 +246,8 @@ class PitNormalize(BaseNormalize):
         return df
 
     def _get_calendar_list(self) -> Iterable[pd.Timestamp]:
+        if self._calendar_list_override is not None:
+            return [pd.Timestamp(date) for date in self._calendar_list_override]
         return get_calendar_list()
 
 

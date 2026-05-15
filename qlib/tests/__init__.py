@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 import io
 
-from .data import GetData
+from .data import GetData, QLIB_DATASET_NAME, SMOKE_FIXTURE_DATASET_NAME
 from .. import init
 from ..constant import REG_CN, REG_TW
 from qlib.data.filter import NameDFilter
@@ -15,20 +15,20 @@ from qlib.data.storage import CalendarStorage, InstrumentStorage, FeatureStorage
 
 class TestAutoData(unittest.TestCase):
     _setup_kwargs = {}
-    provider_uri = "~/.qlib/qlib_data/cn_data_simple"  # target_dir
+    provider_uri = "~/.qlib/qlib_data/provider_smoke_fixture_unbound"  # target_dir
     provider_uri_1day = "~/.qlib/qlib_data/cn_data"  # target_dir
     provider_uri_1min = "~/.qlib/qlib_data/cn_data_1min"
 
     @classmethod
-    def setUpClass(cls, enable_1d_type="simple", enable_1min=False) -> None:
+    def setUpClass(cls, enable_1d_type="smoke_fixture", enable_1min=False) -> None:
         # use default data
 
-        if enable_1d_type == "simple":
+        if enable_1d_type in {"smoke_fixture", "simple"}:
             provider_uri_day = cls.provider_uri
-            name_day = "qlib_data_simple"
+            name_day = SMOKE_FIXTURE_DATASET_NAME
         elif enable_1d_type == "full":
             provider_uri_day = cls.provider_uri_1day
-            name_day = "qlib_data"
+            name_day = QLIB_DATASET_NAME
         else:
             raise NotImplementedError(f"This type of input is not supported")
 
@@ -43,7 +43,7 @@ class TestAutoData(unittest.TestCase):
 
         if enable_1min:
             GetData().qlib_data(
-                name="qlib_data",
+                name=QLIB_DATASET_NAME,
                 region=REG_CN,
                 interval="1min",
                 target_dir=cls.provider_uri_1min,
@@ -63,7 +63,7 @@ class TestAutoData(unittest.TestCase):
 
 class TestOperatorData(TestAutoData):
     @classmethod
-    def setUpClass(cls, enable_1d_type="simple", enable_1min=False) -> None:
+    def setUpClass(cls, enable_1d_type="smoke_fixture", enable_1min=False) -> None:
         # use default data
         super().setUpClass(enable_1d_type, enable_1min)
         nameDFilter = NameDFilter(name_rule_re="SH600110")
