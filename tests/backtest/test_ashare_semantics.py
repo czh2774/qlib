@@ -281,6 +281,22 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "limit_threshold": "joinquant_ashare",
         "authoritative_limit_fields": ["$up_limit", "$down_limit"],
     }
+    assert prompt_payload["price_limit_semantics"] == {
+        "limit_threshold": "joinquant_ashare",
+        "price_limit_mode": "strict",
+        "authoritative_limit_fields": ["$up_limit", "$down_limit"],
+        "field_authority": "provider_up_down_limit_fields",
+        "missing_authoritative_fields": "fail_closed_in_strict_mode_else_qlib_board_fallback_for_legacy_datasets",
+        "board_fallback_policy": "runtime_compatibility_only_when_authoritative_fields_are_absent",
+        "board_limit_thresholds": {
+            "main_board": 0.095,
+            "star_chinext": 0.195,
+            "bse": 0.295,
+            "chinext_registration_start_date": "2020-08-24",
+        },
+        "rdagent_rule": "describe_only_do_not_redefine_price_limit_thresholds_or_fields",
+    }
+    assert relaxed_contract["prompt_projection_payload"]["price_limit_semantics"]["price_limit_mode"] == "auto"
     assert prompt_payload["settlement_semantics"] == {
         "settlement_rule": "t_plus_1_stock",
         "same_day_sell_policy": "shares_bought_today_are_unsellable_until_day_commit",
@@ -288,6 +304,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "runtime_authority": "qlib.backtest.position.AsharePosition",
         "rdagent_rule": "describe_only_do_not_redefine_position_or_settlement",
     }
+    assert "price_limit_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "settlement_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "settlement_rule" in strict_contract["rdagent_must_not_redefine"]
     assert "same_day_sell_policy" in strict_contract["rdagent_must_not_redefine"]
@@ -324,6 +341,7 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
     assert round_tripped["market_semantics"]["cost_model"]["close_tax"] == pytest.approx(0.001)
     assert round_tripped["failure_semantics"]["malformed_contract"] == "fail_closed"
     assert round_tripped["prompt_projection_payload"]["projection_id"] == "qlib_joinquant_ashare_prompt_projection_v1"
+    assert round_tripped["prompt_projection_payload"]["price_limit_semantics"]["price_limit_mode"] == "auto"
     assert round_tripped["prompt_projection_payload"]["settlement_semantics"]["settlement_rule"] == "t_plus_1_stock"
     assert round_tripped["runtime_handoff_contract"]["mutation_policy"] == "pass_through_only"
 

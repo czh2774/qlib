@@ -309,6 +309,21 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "limit_threshold": market_semantics["limit_threshold"],
             "authoritative_limit_fields": list(market_semantics["authoritative_limit_fields"]),
         },
+        "price_limit_semantics": {
+            "limit_threshold": market_semantics["limit_threshold"],
+            "price_limit_mode": runtime_surfaces["exchange_kwargs"]["ashare_price_limit_mode"],
+            "authoritative_limit_fields": list(market_semantics["authoritative_limit_fields"]),
+            "field_authority": "provider_up_down_limit_fields",
+            "missing_authoritative_fields": ("fail_closed_in_strict_mode_else_qlib_board_fallback_for_legacy_datasets"),
+            "board_fallback_policy": "runtime_compatibility_only_when_authoritative_fields_are_absent",
+            "board_limit_thresholds": {
+                "main_board": policy.main_board_threshold,
+                "star_chinext": policy.star_chinext_threshold,
+                "bse": policy.bse_threshold,
+                "chinext_registration_start_date": policy.chinext_registration_start_date,
+            },
+            "rdagent_rule": "describe_only_do_not_redefine_price_limit_thresholds_or_fields",
+        },
         "settlement_semantics": {
             "settlement_rule": market_semantics["settlement_rule"],
             "same_day_sell_policy": market_semantics["same_day_sell_policy"],
@@ -367,6 +382,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
                 "market_semantics.settlement_rule",
                 "market_semantics.limit_threshold",
                 "market_semantics.authoritative_limit_fields",
+                "price_limit_semantics",
                 "settlement_semantics",
             ],
             "rdagent_prompt_forbidden_fields": [
