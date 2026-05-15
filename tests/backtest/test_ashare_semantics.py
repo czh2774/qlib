@@ -2630,7 +2630,11 @@ def test_ashare_research_data_source_contract_bounds_rd_agent_factor_prompts() -
         source_boundary["frequency_rule"]
         == "rdagent_factor_extraction_prompts_must_not_advertise_minute_or_intraday_data_as_default"
     )
-    assert source_boundary["rdagent_prompt_paths"] == ["rdagent/scenarios/qlib/factor_experiment_loader/prompts.yaml"]
+    assert source_boundary["rdagent_prompt_paths"] == [
+        "rdagent/scenarios/qlib/factor_experiment_loader/prompts.yaml",
+        "rdagent/scenarios/qlib/prompts.yaml",
+        "rdagent/components/coder/factor_coder/prompts.yaml",
+    ]
     assert (
         source_boundary["rdagent_rule"]
         == "describe_only_use_qlib_registered_daily_or_user_supplied_point_in_time_sources"
