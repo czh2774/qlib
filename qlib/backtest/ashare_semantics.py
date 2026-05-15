@@ -679,6 +679,10 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "rdagent_model_type_boundary_rule": (
             "rdagent_qlib_model_experiment_outputs_must_use_tabular_or_timeseries_model_type_only"
         ),
+        "rdagent_model_prompt_example_boundary_rule": (
+            "rdagent_qlib_model_prompt_examples_must_use_concrete_supported_model_type_literals_not_union_or_typo_values"
+        ),
+        "rdagent_model_prompt_forbidden_model_type_literals": ["Tabular or TimeSeries", "TimesSeries"],
         "rdagent_model_implementation_prompt_boundary_rule": (
             "rdagent_qlib_model_implementation_prompts_must_treat_model_output_boundary_as_authority_over_generic_model_type_examples"
         ),

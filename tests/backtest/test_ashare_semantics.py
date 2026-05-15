@@ -886,6 +886,10 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "rdagent_model_type_boundary_rule": (
             "rdagent_qlib_model_experiment_outputs_must_use_tabular_or_timeseries_model_type_only"
         ),
+        "rdagent_model_prompt_example_boundary_rule": (
+            "rdagent_qlib_model_prompt_examples_must_use_concrete_supported_model_type_literals_not_union_or_typo_values"
+        ),
+        "rdagent_model_prompt_forbidden_model_type_literals": ["Tabular or TimeSeries", "TimesSeries"],
         "rdagent_model_implementation_prompt_boundary_rule": (
             "rdagent_qlib_model_implementation_prompts_must_treat_model_output_boundary_as_authority_over_generic_model_type_examples"
         ),
@@ -2239,6 +2243,14 @@ def test_ashare_prediction_signal_contract_matches_runtime_sources() -> None:
         == "rdagent_qlib_model_experiment_outputs_must_use_tabular_or_timeseries_model_type_only"
     )
     assert (
+        signal_semantics["rdagent_model_prompt_example_boundary_rule"]
+        == "rdagent_qlib_model_prompt_examples_must_use_concrete_supported_model_type_literals_not_union_or_typo_values"
+    )
+    assert signal_semantics["rdagent_model_prompt_forbidden_model_type_literals"] == [
+        "Tabular or TimeSeries",
+        "TimesSeries",
+    ]
+    assert (
         signal_semantics["rdagent_model_implementation_prompt_boundary_rule"]
         == "rdagent_qlib_model_implementation_prompts_must_treat_model_output_boundary_as_authority_over_generic_model_type_examples"
     )
@@ -2339,6 +2351,9 @@ def test_ashare_prediction_signal_contract_matches_runtime_sources() -> None:
     assert "torch_geometric_or_graph_inputs" in signal_semantics["rdagent_model_benchmark_reference_code_boundary_rule"]
     assert "prediction_score_identity" in signal_semantics["rdagent_model_benchmark_identity_rule"]
     assert "not_legacy_graph_model_names" in signal_semantics["rdagent_model_benchmark_identity_rule"]
+    assert "concrete_supported_model_type_literals" in signal_semantics["rdagent_model_prompt_example_boundary_rule"]
+    assert "Tabular or TimeSeries" in signal_semantics["rdagent_model_prompt_forbidden_model_type_literals"]
+    assert "TimesSeries" in signal_semantics["rdagent_model_prompt_forbidden_model_type_literals"]
     assert signal_semantics["rdagent_model_benchmark_task_name"] == "QlibAshareTemporalScore"
     assert "rdagent/components/coder/model_coder/benchmark/model_dict.json" in signal_semantics[
         "rdagent_model_benchmark_surface_paths"
@@ -3020,6 +3035,15 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
         round_tripped["prompt_projection_payload"]["prediction_signal_semantics"]["rdagent_model_type_boundary_rule"]
         == "rdagent_qlib_model_experiment_outputs_must_use_tabular_or_timeseries_model_type_only"
     )
+    assert (
+        round_tripped["prompt_projection_payload"]["prediction_signal_semantics"][
+            "rdagent_model_prompt_example_boundary_rule"
+        ]
+        == "rdagent_qlib_model_prompt_examples_must_use_concrete_supported_model_type_literals_not_union_or_typo_values"
+    )
+    assert round_tripped["prompt_projection_payload"]["prediction_signal_semantics"][
+        "rdagent_model_prompt_forbidden_model_type_literals"
+    ] == ["Tabular or TimeSeries", "TimesSeries"]
     assert (
         round_tripped["prompt_projection_payload"]["prediction_signal_semantics"][
             "rdagent_model_implementation_prompt_boundary_rule"
