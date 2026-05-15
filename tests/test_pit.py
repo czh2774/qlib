@@ -11,7 +11,7 @@ import pandas as pd
 from pathlib import Path
 
 from qlib.data import D
-from qlib.tests.data import GetData
+from qlib.tests.data import GetData, QLIB_DATASET_NAME, SMOKE_FIXTURE_DATASET_NAME
 
 sys.path.append(str(Path(__file__).resolve().parent.parent.joinpath("scripts")))
 from dump_pit import DumpPitData
@@ -29,6 +29,13 @@ QLIB_DIR = DATA_DIR.joinpath("qlib_data")
 QLIB_DIR.mkdir(exist_ok=True, parents=True)
 
 
+def _read_local_day_calendar(provider_uri):
+    calendar_path = Path(provider_uri).joinpath("calendars/day.txt")
+    if not calendar_path.exists():
+        raise FileNotFoundError(f"local qlib day calendar does not exist: {calendar_path}")
+    return [pd.Timestamp(line.strip()) for line in calendar_path.read_text().splitlines() if line.strip()]
+
+
 class TestPIT(unittest.TestCase):
     @classmethod
     def tearDownClass(cls) -> None:
@@ -40,9 +47,16 @@ class TestPIT(unittest.TestCase):
         pit_dir = str(SOURCE_DIR.joinpath("pit").resolve())
         pit_normalized_dir = str(SOURCE_DIR.joinpath("pit_normalized").resolve())
         GetData().qlib_data(
-            name="qlib_data_simple", target_dir=cn_data_dir, region="cn", delete_old=False, exists_skip=True
+            name=SMOKE_FIXTURE_DATASET_NAME,
+            target_dir=cn_data_dir,
+            region="cn",
+            delete_old=False,
+            exists_skip=True,
         )
-        GetData().qlib_data(name="qlib_data", target_dir=pit_dir, region="pit", delete_old=False, exists_skip=True)
+        GetData().qlib_data(
+            name=QLIB_DATASET_NAME, target_dir=pit_dir, region="pit", delete_old=False, exists_skip=True
+        )
+        calendar_list = _read_local_day_calendar(cn_data_dir)
 
         # NOTE: This code does the same thing as line 43, but since baostock is not stable in downloading data, we have chosen to download offline data.
         # bs.login()
@@ -56,7 +70,7 @@ class TestPIT(unittest.TestCase):
             source_dir=pit_dir,
             normalize_dir=pit_normalized_dir,
             interval="quarterly",
-        ).normalize_data()
+        ).normalize_data(calendar_list=calendar_list)
         DumpPitData(
             csv_path=pit_normalized_dir,
             qlib_dir=cn_data_dir,

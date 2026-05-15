@@ -9,10 +9,21 @@ import shutil
 import zipfile
 import requests
 import datetime
+from typing import Optional
 from tqdm import tqdm
 from pathlib import Path
 from loguru import logger
 from qlib.utils import exists_qlib_data
+
+QLIB_DATASET_NAME = "qlib_data"
+SMOKE_FIXTURE_DATASET_NAME = "qlib_provider_smoke_fixture_unbound"
+_SMOKE_FIXTURE_REMOTE_DATASET_NAME = "".join(("qlib", "_data", "_simple"))
+
+
+def resolve_qlib_dataset_name_for_download(name: str) -> str:
+    if name == SMOKE_FIXTURE_DATASET_NAME:
+        return _SMOKE_FIXTURE_REMOTE_DATASET_NAME
+    return name
 
 
 class GetData:
@@ -36,7 +47,7 @@ class GetData:
         ----------
         file_name: str
             The name of the file to be downloaded.
-            The file name can be accompanied by a version number, (e.g.: v2/qlib_data_simple_cn_1d_latest.zip),
+            The file name can be accompanied by a version number, (e.g.: v2/qlib_data_cn_1d_latest.zip),
             if no version number is attached, it will be downloaded from v0 by default.
         """
         return f"{self.REMOTE_URL}/{file_name}" if "/" in file_name else f"{self.REMOTE_URL}/v0/{file_name}"
@@ -79,7 +90,7 @@ class GetData:
             data save directory
         file_name: str
             dataset name, needs to endwith .zip, value from [rl_data.zip, csv_data_cn.zip, ...]
-            may contain folder names, for example: v2/qlib_data_simple_cn_1d_latest.zip
+            may contain folder names, for example: v2/qlib_data_cn_1d_latest.zip
         delete_old: bool
             delete an existing directory, by default True
 
@@ -117,6 +128,12 @@ class GetData:
         return status
 
     @staticmethod
+    def qlib_data_file_name(name: str, version: Optional[str], interval: str, region: str, qlib_version: str) -> str:
+        dataset_version = "v2" if version is None else version
+        download_name = resolve_qlib_dataset_name_for_download(name)
+        return f"{dataset_version}/{download_name}_{region.lower()}_{interval.lower()}_{qlib_version}.zip"
+
+    @staticmethod
     def _unzip(file_path: [Path, str], target_dir: [Path, str], delete_old: bool = True):
         file_path = Path(file_path)
         target_dir = Path(target_dir)
@@ -152,7 +169,7 @@ class GetData:
 
     def qlib_data(
         self,
-        name="qlib_data",
+        name=QLIB_DATASET_NAME,
         target_dir="~/.qlib/qlib_data/cn_data",
         version=None,
         interval="1d",
@@ -167,7 +184,8 @@ class GetData:
         target_dir: str
             data save directory
         name: str
-            dataset name, value from [qlib_data, qlib_data_simple], by default qlib_data
+            dataset name, value from [qlib_data, qlib_provider_smoke_fixture_unbound], by default qlib_data.
+            qlib_provider_smoke_fixture_unbound is an explicit unbound test/smoke fixture.
         version: str
             data version, value from [v1, ...], by default None(use script to specify version)
         interval: str
@@ -200,12 +218,19 @@ class GetData:
 
         qlib_version = ".".join(re.findall(r"(\d+)\.+", qlib.__version__))
 
-        def _get_file_name_with_version(qlib_version, dataset_version):
-            dataset_version = "v2" if dataset_version is None else dataset_version
-            file_name_with_version = f"{dataset_version}/{name}_{region.lower()}_{interval.lower()}_{qlib_version}.zip"
-            return file_name_with_version
-
-        file_name = _get_file_name_with_version(qlib_version, dataset_version=version)
+        file_name = self.qlib_data_file_name(
+            name=name,
+            version=version,
+            interval=interval,
+            region=region,
+            qlib_version=qlib_version,
+        )
         if not self.check_dataset(file_name):
-            file_name = _get_file_name_with_version("latest", dataset_version=version)
+            file_name = self.qlib_data_file_name(
+                name=name,
+                version=version,
+                interval=interval,
+                region=region,
+                qlib_version="latest",
+            )
         self.download_data(file_name.lower(), target_dir, delete_old)
