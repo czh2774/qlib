@@ -210,7 +210,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
 
     policy = JOINQUANT_ASHARE_POLICY
     schema_version = "qlib_ashare_semantic_contract.v1"
-    market_semantics = {
+    market_semantics: dict[str, Any] = {
         "market": "china_a_share",
         "region": "cn",
         "data_frequency": "day",
@@ -237,7 +237,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "min_cost": policy.min_cost,
         },
     }
-    runtime_surfaces = {
+    runtime_surfaces: dict[str, Any] = {
         "policy_class": f"{QLIB_ASHARE_AUTHORITY_COMPONENT}.JoinQuantAshareBacktestPolicy",
         "policy_defaults": asdict(policy),
         "exchange_kwargs": joinquant_ashare_exchange_kwargs(strict_price_limit=strict_price_limit),
