@@ -1085,6 +1085,21 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "bandit_metric_invalid_failure": "non_numeric_or_non_finite_bandit_metric_fails_closed_without_zero_default",
         "derived_bandit_utility_name": "drawdown_adjusted_return",
         "derived_bandit_utility_rule": "rdagent_may_compute_arr_over_abs_max_drawdown_as_derived_utility_not_qlib_metric",
+        "bandit_feature_vector_fields": [
+            "ic",
+            "icir",
+            "rank_ic",
+            "rank_icir",
+            "arr",
+            "ir",
+            "mdd",
+            "drawdown_adjusted_return",
+        ],
+        "bandit_reward_objective": "drawdown_adjusted_return",
+        "bandit_signal_context_rule": "signal_ic_metrics_are_bandit_context_features_not_reward_terms",
+        "bandit_reward_rule": (
+            "rdagent_bandit_reward_must_use_drawdown_adjusted_return_without_weighted_signal_metric_terms"
+        ),
         "forbidden_metric_aliases": ["sharpe", "Sharpe"],
         "forbidden_first_round_success_proxies": [
             "not too negative",
@@ -2669,6 +2684,22 @@ def test_ashare_feedback_metric_contract_matches_runtime_sources() -> None:
         "non_numeric_or_non_finite_bandit_metric_fails_closed_without_zero_default"
     )
     assert feedback_metric["derived_bandit_utility_name"] == "drawdown_adjusted_return"
+    assert feedback_metric["bandit_feature_vector_fields"] == [
+        "ic",
+        "icir",
+        "rank_ic",
+        "rank_icir",
+        "arr",
+        "ir",
+        "mdd",
+        "drawdown_adjusted_return",
+    ]
+    assert feedback_metric["bandit_reward_objective"] == "drawdown_adjusted_return"
+    assert feedback_metric["bandit_signal_context_rule"] == "signal_ic_metrics_are_bandit_context_features_not_reward_terms"
+    assert (
+        feedback_metric["bandit_reward_rule"]
+        == "rdagent_bandit_reward_must_use_drawdown_adjusted_return_without_weighted_signal_metric_terms"
+    )
     assert (
         feedback_metric["derived_bandit_utility_rule"]
         == "rdagent_may_compute_arr_over_abs_max_drawdown_as_derived_utility_not_qlib_metric"
@@ -3241,6 +3272,15 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
     assert round_tripped["prompt_projection_payload"]["feedback_metric_semantics"][
         "bandit_metric_invalid_failure"
     ] == "non_numeric_or_non_finite_bandit_metric_fails_closed_without_zero_default"
+    assert round_tripped["prompt_projection_payload"]["feedback_metric_semantics"]["bandit_reward_objective"] == (
+        "drawdown_adjusted_return"
+    )
+    assert round_tripped["prompt_projection_payload"]["feedback_metric_semantics"]["bandit_signal_context_rule"] == (
+        "signal_ic_metrics_are_bandit_context_features_not_reward_terms"
+    )
+    assert round_tripped["prompt_projection_payload"]["feedback_metric_semantics"]["bandit_reward_rule"] == (
+        "rdagent_bandit_reward_must_use_drawdown_adjusted_return_without_weighted_signal_metric_terms"
+    )
     assert round_tripped["prompt_projection_payload"]["benchmark_return_semantics"]["default_benchmark"] == "SH000300"
     assert (
         round_tripped["prompt_projection_payload"]["benchmark_return_semantics"]["rdagent_rule"]
