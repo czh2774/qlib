@@ -243,6 +243,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "backtest_kwargs": joinquant_ashare_backtest_kwargs(strict_price_limit=strict_price_limit),
     }
     rdagent_must_not_redefine = [
+        "instrument_identity_semantics",
         "trade_unit",
         "position_type",
         "settlement_rule",
@@ -273,6 +274,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "fail_closed_when_contract_is_missing_malformed_or_unsupported",
         ],
         "rdagent_forbidden_actions": [
+            "redefine_instrument_identity_or_board_mapping",
             "redefine_trade_unit_or_position_type",
             "redefine_price_limit_thresholds_or_authoritative_fields",
             "redefine_cost_model_or_exchange_kwargs",
@@ -308,6 +310,40 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "settlement_rule": market_semantics["settlement_rule"],
             "limit_threshold": market_semantics["limit_threshold"],
             "authoritative_limit_fields": list(market_semantics["authoritative_limit_fields"]),
+        },
+        "instrument_identity_semantics": {
+            "semantic_name": "a_share_instrument_identity",
+            "canonical_code_format": "exchange_prefix_plus_six_digit_code",
+            "canonical_exchange_prefixes": ["SH", "SZ", "BJ"],
+            "accepted_provider_suffixes": {
+                "XSHG": "SH",
+                "SH": "SH",
+                "XSHE": "SZ",
+                "SZ": "SZ",
+                "XBJ": "BJ",
+                "BJ": "BJ",
+            },
+            "normalization_examples": {
+                "600000.XSHG": "SH600000",
+                "000001.XSHE": "SZ000001",
+                "430047.XBJ": "BJ430047",
+            },
+            "board_identity_rules": [
+                {"match": "SH688*", "board": "star_market"},
+                {
+                    "match": "SZ300*",
+                    "board": "chinext_registration_sensitive",
+                    "effective_start": policy.chinext_registration_start_date,
+                },
+                {"match": "BJ*|SH8*|SH4*|SH9*|SZ8*|SZ4*|SZ9*", "board": "beijing_stock_exchange"},
+                {"match": "fallback", "board": "main_board"},
+            ],
+            "price_limit_dependency": "board_identity_is_runtime_fallback_only_when_authoritative_limit_fields_absent",
+            "runtime_authority": "qlib.backtest.ashare_semantics.normalize_ashare_instrument",
+            "board_classification_authority": (
+                "qlib.backtest.ashare_semantics.JoinQuantAshareBacktestPolicy.limit_threshold_for_instrument"
+            ),
+            "rdagent_rule": "describe_only_do_not_redefine_instrument_or_board_identity",
         },
         "price_limit_semantics": {
             "limit_threshold": market_semantics["limit_threshold"],
@@ -394,6 +430,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
                 "market_semantics.settlement_rule",
                 "market_semantics.limit_threshold",
                 "market_semantics.authoritative_limit_fields",
+                "instrument_identity_semantics",
                 "price_limit_semantics",
                 "settlement_semantics",
                 "order_unit_semantics",

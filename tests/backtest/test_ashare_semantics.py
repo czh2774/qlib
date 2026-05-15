@@ -191,6 +191,18 @@ def test_joinquant_ashare_board_fallback_uses_board_specific_thresholds() -> Non
     assert not bool(limited["limit_sell"].any())
 
 
+def test_joinquant_ashare_normalizes_provider_instrument_codes_for_board_identity() -> None:
+    policy = JoinQuantAshareBacktestPolicy()
+
+    assert ashare_semantics.normalize_ashare_instrument("600000.XSHG") == "SH600000"
+    assert ashare_semantics.normalize_ashare_instrument("000001.XSHE") == "SZ000001"
+    assert ashare_semantics.normalize_ashare_instrument("430047.XBJ") == "BJ430047"
+    assert policy.limit_threshold_for_instrument("688012.XSHG") == pytest.approx(0.195)
+    assert policy.limit_threshold_for_instrument("300750.XSHE", "2020-08-21") == pytest.approx(0.095)
+    assert policy.limit_threshold_for_instrument("300750.XSHE", "2020-08-24") == pytest.approx(0.195)
+    assert policy.limit_threshold_for_instrument("430047.XBJ") == pytest.approx(0.295)
+
+
 def test_joinquant_ashare_policy_charges_sell_tax_outside_min_commission() -> None:
     policy = JoinQuantAshareBacktestPolicy()
 
@@ -234,8 +246,10 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     assert contract["semantic_boundary"]["authority_component"] == "qlib.backtest.ashare_semantics"
     assert contract["semantic_boundary"]["consumer_component"] == "rdagent.scenarios.qlib.ashare_semantics"
     assert "render_contract_projection_in_research_context" in contract["semantic_boundary"]["rdagent_allowed_actions"]
+    assert "redefine_instrument_identity_or_board_mapping" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert "redefine_cost_model_or_exchange_kwargs" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert set(contract["failure_semantics"].values()) == {"fail_closed"}
+    assert "instrument_identity_semantics" in contract["rdagent_must_not_redefine"]
     assert "cost_model" in contract["rdagent_must_not_redefine"]
     assert contract["market_semantics"]["region"] == "cn"
     assert contract["market_semantics"]["trade_unit"] == 100
@@ -281,6 +295,40 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "limit_threshold": "joinquant_ashare",
         "authoritative_limit_fields": ["$up_limit", "$down_limit"],
     }
+    assert prompt_payload["instrument_identity_semantics"] == {
+        "semantic_name": "a_share_instrument_identity",
+        "canonical_code_format": "exchange_prefix_plus_six_digit_code",
+        "canonical_exchange_prefixes": ["SH", "SZ", "BJ"],
+        "accepted_provider_suffixes": {
+            "XSHG": "SH",
+            "SH": "SH",
+            "XSHE": "SZ",
+            "SZ": "SZ",
+            "XBJ": "BJ",
+            "BJ": "BJ",
+        },
+        "normalization_examples": {
+            "600000.XSHG": "SH600000",
+            "000001.XSHE": "SZ000001",
+            "430047.XBJ": "BJ430047",
+        },
+        "board_identity_rules": [
+            {"match": "SH688*", "board": "star_market"},
+            {
+                "match": "SZ300*",
+                "board": "chinext_registration_sensitive",
+                "effective_start": "2020-08-24",
+            },
+            {"match": "BJ*|SH8*|SH4*|SH9*|SZ8*|SZ4*|SZ9*", "board": "beijing_stock_exchange"},
+            {"match": "fallback", "board": "main_board"},
+        ],
+        "price_limit_dependency": "board_identity_is_runtime_fallback_only_when_authoritative_limit_fields_absent",
+        "runtime_authority": "qlib.backtest.ashare_semantics.normalize_ashare_instrument",
+        "board_classification_authority": (
+            "qlib.backtest.ashare_semantics.JoinQuantAshareBacktestPolicy.limit_threshold_for_instrument"
+        ),
+        "rdagent_rule": "describe_only_do_not_redefine_instrument_or_board_identity",
+    }
     assert prompt_payload["price_limit_semantics"] == {
         "limit_threshold": "joinquant_ashare",
         "price_limit_mode": "strict",
@@ -316,6 +364,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "runtime_authority": "qlib.backtest.exchange.Exchange.round_amount_by_trade_unit",
         "rdagent_rule": "describe_only_do_not_redefine_trade_unit_or_round_lot_policy",
     }
+    assert "instrument_identity_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "price_limit_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "settlement_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "order_unit_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
@@ -354,6 +403,10 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
     assert round_tripped["market_semantics"]["cost_model"]["close_tax"] == pytest.approx(0.001)
     assert round_tripped["failure_semantics"]["malformed_contract"] == "fail_closed"
     assert round_tripped["prompt_projection_payload"]["projection_id"] == "qlib_joinquant_ashare_prompt_projection_v1"
+    assert (
+        round_tripped["prompt_projection_payload"]["instrument_identity_semantics"]["rdagent_rule"]
+        == "describe_only_do_not_redefine_instrument_or_board_identity"
+    )
     assert round_tripped["prompt_projection_payload"]["price_limit_semantics"]["price_limit_mode"] == "auto"
     assert round_tripped["prompt_projection_payload"]["settlement_semantics"]["settlement_rule"] == "t_plus_1_stock"
     assert round_tripped["prompt_projection_payload"]["order_unit_semantics"]["trade_unit"] == 100
