@@ -848,6 +848,21 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "bandit_metric_invalid_failure": "non_numeric_or_non_finite_bandit_metric_fails_closed_without_zero_default",
         "derived_bandit_utility_name": "drawdown_adjusted_return",
         "derived_bandit_utility_rule": "rdagent_may_compute_arr_over_abs_max_drawdown_as_derived_utility_not_qlib_metric",
+        "bandit_feature_vector_fields": [
+            "ic",
+            "icir",
+            "rank_ic",
+            "rank_icir",
+            "arr",
+            "ir",
+            "mdd",
+            "drawdown_adjusted_return",
+        ],
+        "bandit_reward_objective": "drawdown_adjusted_return",
+        "bandit_signal_context_rule": "signal_ic_metrics_are_bandit_context_features_not_reward_terms",
+        "bandit_reward_rule": (
+            "rdagent_bandit_reward_must_use_drawdown_adjusted_return_without_weighted_signal_metric_terms"
+        ),
         "forbidden_metric_aliases": ["sharpe", "Sharpe"],
         "forbidden_first_round_success_proxies": [
             "not too negative",
