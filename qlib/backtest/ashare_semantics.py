@@ -854,6 +854,11 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "bandit_max_drawdown_positive_failure": (
             "positive_max_drawdown_metric_fails_closed_without_reward_reinterpretation"
         ),
+        "bandit_raw_max_drawdown_field": "mdd",
+        "bandit_drawdown_magnitude_field": "drawdown_magnitude",
+        "bandit_drawdown_magnitude_rule": (
+            "drawdown_magnitude_equals_abs_raw_non_positive_max_drawdown_after_positive_metric_fail_closed"
+        ),
         "bandit_feature_vector_fields": [
             "ic",
             "icir",
@@ -861,7 +866,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "rank_icir",
             "arr",
             "ir",
-            "mdd",
+            "drawdown_magnitude",
             "drawdown_adjusted_return",
         ],
         "bandit_reward_objective": "drawdown_adjusted_return",

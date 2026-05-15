@@ -1091,6 +1091,11 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "bandit_max_drawdown_positive_failure": (
             "positive_max_drawdown_metric_fails_closed_without_reward_reinterpretation"
         ),
+        "bandit_raw_max_drawdown_field": "mdd",
+        "bandit_drawdown_magnitude_field": "drawdown_magnitude",
+        "bandit_drawdown_magnitude_rule": (
+            "drawdown_magnitude_equals_abs_raw_non_positive_max_drawdown_after_positive_metric_fail_closed"
+        ),
         "bandit_feature_vector_fields": [
             "ic",
             "icir",
@@ -1098,7 +1103,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
             "rank_icir",
             "arr",
             "ir",
-            "mdd",
+            "drawdown_magnitude",
             "drawdown_adjusted_return",
         ],
         "bandit_reward_objective": "drawdown_adjusted_return",
@@ -2697,7 +2702,7 @@ def test_ashare_feedback_metric_contract_matches_runtime_sources() -> None:
         "rank_icir",
         "arr",
         "ir",
-        "mdd",
+        "drawdown_magnitude",
         "drawdown_adjusted_return",
     ]
     assert feedback_metric["bandit_reward_objective"] == "drawdown_adjusted_return"
@@ -2715,6 +2720,11 @@ def test_ashare_feedback_metric_contract_matches_runtime_sources() -> None:
     assert feedback_metric["bandit_max_drawdown_zero_rule"] == "zero_max_drawdown_sets_drawdown_adjusted_return_to_zero"
     assert feedback_metric["bandit_max_drawdown_positive_failure"] == (
         "positive_max_drawdown_metric_fails_closed_without_reward_reinterpretation"
+    )
+    assert feedback_metric["bandit_raw_max_drawdown_field"] == "mdd"
+    assert feedback_metric["bandit_drawdown_magnitude_field"] == "drawdown_magnitude"
+    assert feedback_metric["bandit_drawdown_magnitude_rule"] == (
+        "drawdown_magnitude_equals_abs_raw_non_positive_max_drawdown_after_positive_metric_fail_closed"
     )
     assert feedback_metric["forbidden_metric_aliases"] == ["sharpe", "Sharpe"]
     assert feedback_metric["forbidden_first_round_success_proxies"] == [
@@ -3280,6 +3290,18 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
             "bandit_max_drawdown_positive_failure"
         ]
         == "positive_max_drawdown_metric_fails_closed_without_reward_reinterpretation"
+    )
+    assert (
+        round_tripped["prompt_projection_payload"]["feedback_metric_semantics"]["bandit_raw_max_drawdown_field"]
+        == "mdd"
+    )
+    assert (
+        round_tripped["prompt_projection_payload"]["feedback_metric_semantics"]["bandit_drawdown_magnitude_field"]
+        == "drawdown_magnitude"
+    )
+    assert (
+        round_tripped["prompt_projection_payload"]["feedback_metric_semantics"]["bandit_drawdown_magnitude_rule"]
+        == "drawdown_magnitude_equals_abs_raw_non_positive_max_drawdown_after_positive_metric_fail_closed"
     )
     assert round_tripped["prompt_projection_payload"]["feedback_metric_semantics"]["forbidden_metric_aliases"] == [
         "sharpe",
