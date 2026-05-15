@@ -236,7 +236,7 @@ class BasePosition:
         return self.__dict__.__repr__()
 
 
-class Position(BasePosition):
+class Position(BasePosition):  # pylint: disable=too-many-public-methods
     """Position
 
     current state of position

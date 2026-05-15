@@ -7,7 +7,6 @@ from pathlib import Path
 
 import numpy as np
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ASHARE_SEMANTICS_PATH = REPO_ROOT / "qlib/backtest/ashare_semantics.py"
 POSITION_PATH = REPO_ROOT / "qlib/backtest/position.py"
