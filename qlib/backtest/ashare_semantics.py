@@ -246,6 +246,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "instrument_identity_semantics",
         "transaction_cost_semantics",
         "suspension_tradability_semantics",
+        "execution_price_semantics",
         "trade_unit",
         "position_type",
         "settlement_rule",
@@ -279,6 +280,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "redefine_instrument_identity_or_board_mapping",
             "redefine_transaction_cost_model",
             "redefine_suspension_or_tradability_rules",
+            "redefine_execution_price_or_frequency",
             "redefine_trade_unit_or_position_type",
             "redefine_price_limit_thresholds_or_authoritative_fields",
             "redefine_cost_model_or_exchange_kwargs",
@@ -372,6 +374,17 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "runtime_authority": "qlib.backtest.ashare_semantics.JoinQuantAshareBacktestPolicy.apply_price_limits",
             "rdagent_rule": "describe_only_do_not_redefine_suspension_or_tradability",
         },
+        "execution_price_semantics": {
+            "semantic_name": "a_share_daily_close_execution_price",
+            "qlib_parameter": "deal_price",
+            "execution_price_field": "$close",
+            "execution_frequency": "daily_bar_backtest",
+            "price_source_authority": "qlib_exchange_deal_price",
+            "intraday_execution_rule": "not_intraday_or_auction_simulation",
+            "candidate_research_rule": "generated_factors_must_not_assume_intraday_fill_prices",
+            "runtime_authority": "qlib.backtest.ashare_semantics.joinquant_ashare_exchange_kwargs",
+            "rdagent_rule": "describe_only_do_not_redefine_execution_price_or_frequency",
+        },
         "price_limit_semantics": {
             "limit_threshold": market_semantics["limit_threshold"],
             "price_limit_mode": runtime_surfaces["exchange_kwargs"]["ashare_price_limit_mode"],
@@ -418,7 +431,8 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "rdagent_role": "research_candidate_generation_context_consumer",
             "relationship_rule": (
                 "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
-                "but it must not redefine trade unit, position, suspension/tradability, price-limit, or cost semantics."
+                "but it must not redefine trade unit, position, execution-price, suspension/tradability, "
+                "price-limit, or cost semantics."
             ),
             "fail_closed_on_missing_contract": True,
         },
@@ -460,6 +474,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
                 "instrument_identity_semantics",
                 "transaction_cost_semantics",
                 "suspension_tradability_semantics",
+                "execution_price_semantics",
                 "price_limit_semantics",
                 "settlement_semantics",
                 "order_unit_semantics",

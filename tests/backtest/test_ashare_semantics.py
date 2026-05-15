@@ -333,7 +333,8 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
         "rdagent_role": "research_candidate_generation_context_consumer",
         "relationship_rule": (
             "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
-            "but it must not redefine trade unit, position, suspension/tradability, price-limit, or cost semantics."
+            "but it must not redefine trade unit, position, execution-price, suspension/tradability, "
+            "price-limit, or cost semantics."
         ),
         "fail_closed_on_missing_contract": True,
     }
@@ -343,11 +344,13 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     assert "redefine_instrument_identity_or_board_mapping" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert "redefine_transaction_cost_model" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert "redefine_suspension_or_tradability_rules" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
+    assert "redefine_execution_price_or_frequency" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert "redefine_cost_model_or_exchange_kwargs" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert set(contract["failure_semantics"].values()) == {"fail_closed"}
     assert "instrument_identity_semantics" in contract["rdagent_must_not_redefine"]
     assert "transaction_cost_semantics" in contract["rdagent_must_not_redefine"]
     assert "suspension_tradability_semantics" in contract["rdagent_must_not_redefine"]
+    assert "execution_price_semantics" in contract["rdagent_must_not_redefine"]
     assert "cost_model" in contract["rdagent_must_not_redefine"]
     assert contract["market_semantics"]["region"] == "cn"
     assert contract["market_semantics"]["trade_unit"] == 100
@@ -450,6 +453,17 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "runtime_authority": "qlib.backtest.ashare_semantics.JoinQuantAshareBacktestPolicy.apply_price_limits",
         "rdagent_rule": "describe_only_do_not_redefine_suspension_or_tradability",
     }
+    assert prompt_payload["execution_price_semantics"] == {
+        "semantic_name": "a_share_daily_close_execution_price",
+        "qlib_parameter": "deal_price",
+        "execution_price_field": "$close",
+        "execution_frequency": "daily_bar_backtest",
+        "price_source_authority": "qlib_exchange_deal_price",
+        "intraday_execution_rule": "not_intraday_or_auction_simulation",
+        "candidate_research_rule": "generated_factors_must_not_assume_intraday_fill_prices",
+        "runtime_authority": "qlib.backtest.ashare_semantics.joinquant_ashare_exchange_kwargs",
+        "rdagent_rule": "describe_only_do_not_redefine_execution_price_or_frequency",
+    }
     assert prompt_payload["price_limit_semantics"] == {
         "limit_threshold": "joinquant_ashare",
         "price_limit_mode": "strict",
@@ -490,6 +504,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert (
         "suspension_tradability_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     )
+    assert "execution_price_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "price_limit_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "settlement_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "order_unit_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
@@ -540,6 +555,10 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
     assert (
         round_tripped["prompt_projection_payload"]["suspension_tradability_semantics"]["rdagent_rule"]
         == "describe_only_do_not_redefine_suspension_or_tradability"
+    )
+    assert (
+        round_tripped["prompt_projection_payload"]["execution_price_semantics"]["rdagent_rule"]
+        == "describe_only_do_not_redefine_execution_price_or_frequency"
     )
     assert round_tripped["prompt_projection_payload"]["price_limit_semantics"]["price_limit_mode"] == "auto"
     assert round_tripped["prompt_projection_payload"]["settlement_semantics"]["settlement_rule"] == "t_plus_1_stock"
