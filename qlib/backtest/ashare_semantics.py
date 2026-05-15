@@ -318,6 +318,9 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "point_in_time_rule": (
             "non_price_volume_fields_are_allowed_only_when_user_or_provider_supplies_daily_point_in_time_data"
         ),
+        "point_in_time_registration_rule": (
+            "user_or_provider_supplied_non_price_volume_fields_must_name_source_owner_field_identity_and_daily_point_in_time_validity"
+        ),
         "forbidden_default_prompt_sources": [
             "turnover",
             "minute_level_high_frequency_data",
