@@ -356,7 +356,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
             "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
             "but it must not redefine universe-membership, trading-calendar/data-frequency, trade unit, position, execution-price, "
             "price-adjustment, "
-            "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, executor/trade-decision lifecycle, strategy signal-to-order generation, supervised label, prediction signal, signal IC, portfolio risk analysis, benchmark-relative excess return, feedback metric consumption, benchmark return, universe/benchmark binding, runtime handoff template binding, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
+            "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, executor/trade-decision lifecycle, strategy signal-to-order generation, supervised label, prediction signal, signal IC, portfolio risk analysis, benchmark-relative excess return, feedback metric consumption, benchmark return, universe/benchmark binding, runtime handoff template binding, research data-source, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
         ),
         "fail_closed_on_missing_contract": True,
     }
@@ -423,6 +423,10 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
         in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     )
     assert (
+        "redefine_research_data_source_availability_or_imply_unregistered_sources"
+        in contract["semantic_boundary"]["rdagent_forbidden_actions"]
+    )
+    assert (
         "redefine_settlement_or_sellable_position_state" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     )
     assert (
@@ -452,6 +456,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     assert "benchmark_return_semantics" in contract["rdagent_must_not_redefine"]
     assert "universe_benchmark_binding_semantics" in contract["rdagent_must_not_redefine"]
     assert "runtime_handoff_template_binding_semantics" in contract["rdagent_must_not_redefine"]
+    assert "research_data_source_semantics" in contract["rdagent_must_not_redefine"]
     assert "suspension_tradability_semantics" in contract["rdagent_must_not_redefine"]
     assert "execution_price_semantics" in contract["rdagent_must_not_redefine"]
     assert "price_adjustment_semantics" in contract["rdagent_must_not_redefine"]
@@ -508,6 +513,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "benchmark_return_semantics" in evidence["fingerprint_scope"]
     assert "universe_benchmark_binding_semantics" in evidence["fingerprint_scope"]
     assert "runtime_handoff_template_binding_semantics" in evidence["fingerprint_scope"]
+    assert "research_data_source_semantics" in evidence["fingerprint_scope"]
     assert "qlib_contract_fingerprint" in evidence["rdagent_required_evidence_fields"]
     assert (
         "runtime_surfaces.backtest_kwargs" in strict_contract["projection_contract"]["rdagent_prompt_forbidden_fields"]
@@ -1251,6 +1257,9 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert (
         "runtime_handoff_template_binding_semantics"
         in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
+    )
+    assert (
+        "research_data_source_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     )
     assert (
         "suspension_tradability_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
@@ -2495,6 +2504,52 @@ def test_ashare_universe_benchmark_binding_contract_matches_config_constants() -
     assert 'CSI300_BENCH = "SH000300"' in config_source
 
 
+def test_ashare_research_data_source_contract_bounds_rd_agent_factor_prompts() -> None:
+    contract = ashare_semantics.rdagent_ashare_semantic_contract()
+    source_boundary = contract["prompt_projection_payload"]["research_data_source_semantics"]
+    handler_source = HANDLER_PATH.read_text()
+
+    assert source_boundary["semantic_name"] == "a_share_research_data_source_boundary"
+    assert source_boundary["data_frequency"] == "day"
+    assert source_boundary["source_scope"] == "qlib_daily_research_and_backtest_inputs"
+    assert source_boundary["index_contract"] == ["datetime", "instrument"]
+    assert source_boundary["primary_price_volume_fields"] == [
+        "$open",
+        "$close",
+        "$high",
+        "$low",
+        "$vwap",
+        "$volume",
+    ]
+    assert source_boundary["handler_authority"] == "qlib.contrib.data.handler.Alpha158"
+    assert source_boundary["handler360_authority"] == "qlib.contrib.data.handler.Alpha360"
+    assert source_boundary["loader_authority"] == "qlib.contrib.data.loader.Alpha158DL"
+    assert source_boundary["allowed_prompt_source_tables"] == [
+        "daily_stock_trade_data",
+        "daily_price_volume_derived_features",
+        "provider_supplied_point_in_time_fundamental_or_industry_fields",
+    ]
+    assert source_boundary["point_in_time_rule"] == (
+        "non_price_volume_fields_are_allowed_only_when_user_or_provider_supplies_daily_point_in_time_data"
+    )
+    assert source_boundary["forbidden_default_prompt_sources"] == [
+        "minute_level_high_frequency_data",
+        "analyst_consensus_expectation_factor",
+        "unregistered_external_vendor_fields",
+    ]
+    assert (
+        source_boundary["frequency_rule"]
+        == "rdagent_factor_extraction_prompts_must_not_advertise_minute_or_intraday_data_as_default"
+    )
+    assert source_boundary["rdagent_prompt_paths"] == ["rdagent/scenarios/qlib/factor_experiment_loader/prompts.yaml"]
+    assert (
+        source_boundary["rdagent_rule"]
+        == "describe_only_use_qlib_registered_daily_or_user_supplied_point_in_time_sources"
+    )
+    assert '"feature": ["OPEN", "HIGH", "LOW", "VWAP"]' in handler_source
+    assert 'return ["Ref($close, -2)/Ref($close, -1) - 1"], ["LABEL0"]' in handler_source
+
+
 def test_ashare_cash_settlement_contract_matches_position_source() -> None:
     contract = ashare_semantics.rdagent_ashare_semantic_contract()
     cash_settlement = contract["prompt_projection_payload"]["cash_settlement_semantics"]
@@ -2715,6 +2770,10 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
     assert (
         round_tripped["prompt_projection_payload"]["benchmark_return_semantics"]["rdagent_rule"]
         == "describe_only_do_not_redefine_benchmark_return_series_or_default_benchmark"
+    )
+    assert (
+        round_tripped["prompt_projection_payload"]["research_data_source_semantics"]["rdagent_rule"]
+        == "describe_only_use_qlib_registered_daily_or_user_supplied_point_in_time_sources"
     )
     assert (
         round_tripped["prompt_projection_payload"]["suspension_tradability_semantics"]["rdagent_rule"]
