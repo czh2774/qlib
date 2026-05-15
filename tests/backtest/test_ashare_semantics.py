@@ -338,7 +338,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
             "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
             "but it must not redefine universe-membership, trading-calendar/data-frequency, trade unit, position, execution-price, "
             "price-adjustment, "
-            "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
+            "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
         ),
         "fail_closed_on_missing_contract": True,
     }
@@ -365,6 +365,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     assert (
         "redefine_account_position_or_cash_mutation_order" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     )
+    assert "redefine_account_valuation_or_bar_end_refresh" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert (
         "redefine_settlement_or_sellable_position_state" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     )
@@ -382,6 +383,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     assert "transaction_cost_semantics" in contract["rdagent_must_not_redefine"]
     assert "market_impact_semantics" in contract["rdagent_must_not_redefine"]
     assert "account_update_semantics" in contract["rdagent_must_not_redefine"]
+    assert "account_valuation_semantics" in contract["rdagent_must_not_redefine"]
     assert "suspension_tradability_semantics" in contract["rdagent_must_not_redefine"]
     assert "execution_price_semantics" in contract["rdagent_must_not_redefine"]
     assert "price_adjustment_semantics" in contract["rdagent_must_not_redefine"]
@@ -425,6 +427,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "order_fill_amount_semantics" in evidence["fingerprint_scope"]
     assert "market_impact_semantics" in evidence["fingerprint_scope"]
     assert "account_update_semantics" in evidence["fingerprint_scope"]
+    assert "account_valuation_semantics" in evidence["fingerprint_scope"]
     assert "qlib_contract_fingerprint" in evidence["rdagent_required_evidence_fields"]
     assert (
         "runtime_surfaces.backtest_kwargs" in strict_contract["projection_contract"]["rdagent_prompt_forbidden_fields"]
@@ -555,6 +558,35 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "sellable_amount_rule": "ashare_sells_reduce_sellable_amount_and_day_bar_count_refresh_releases_total_amount",
         "infinite_position_rule": "skip_update_position_does_not_mutate_account_or_position",
         "rdagent_rule": "describe_only_do_not_redefine_account_position_or_cash_mutation_order",
+    }
+    assert prompt_payload["account_valuation_semantics"] == {
+        "semantic_name": "a_share_account_bar_end_valuation",
+        "bar_end_authority": "qlib.backtest.account.Account.update_bar_end",
+        "position_refresh_authority": "qlib.backtest.account.Account.update_current_position",
+        "portfolio_metrics_authority": "qlib.backtest.account.Account.update_portfolio_metrics",
+        "history_position_authority": "qlib.backtest.account.Account.update_hist_positions",
+        "price_update_authority": "qlib.backtest.position.Position.update_stock_price",
+        "value_authority": "qlib.backtest.position.Position.calculate_value",
+        "stock_value_authority": "qlib.backtest.position.Position.calculate_stock_value",
+        "holding_count_authority": "qlib.backtest.position.Position.add_count_all",
+        "ashare_sellable_release_authority": "qlib.backtest.position.AsharePosition.add_count_all",
+        "close_price_authority": "qlib.backtest.exchange.Exchange.get_close",
+        "bar_end_sequence": [
+            "refresh_current_position_prices_and_holding_counts",
+            "update_portfolio_metrics_when_enabled",
+            "snapshot_history_positions_when_enabled",
+            "update_trade_indicators",
+        ],
+        "mark_price_rule": "non_suspended_positions_mark_to_bar_close_at_bar_end",
+        "suspension_price_rule": "suspended_positions_keep_previous_price_during_bar_end_refresh",
+        "account_value_rule": "account_value_equals_stock_value_plus_cash_plus_cash_delay",
+        "stock_value_rule": "stock_value_equals_position_amount_times_current_position_price",
+        "portfolio_return_rule": "return_rate_uses_account_earning_plus_current_cost_over_last_account_value",
+        "history_snapshot_rule": "history_positions_store_deepcopy_after_now_account_value_and_weights_refresh",
+        "holding_count_rule": "bar_end_refresh_increments_position_count_for_account_frequency",
+        "daily_sellable_release_rule": "ashare_day_bar_count_refresh_releases_total_amount_to_sellable_amount",
+        "infinite_position_rule": "skip_update_position_does_not_refresh_prices_counts_metrics_or_history",
+        "rdagent_rule": "describe_only_do_not_redefine_account_valuation_or_bar_end_refresh",
     }
     assert prompt_payload["suspension_tradability_semantics"] == {
         "semantic_name": "a_share_suspension_tradability",
@@ -736,6 +768,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "transaction_cost_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "market_impact_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "account_update_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
+    assert "account_valuation_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert (
         "suspension_tradability_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     )
@@ -949,6 +982,76 @@ def test_ashare_account_update_contract_matches_runtime_sources() -> None:
     )
 
 
+def test_ashare_account_valuation_contract_matches_runtime_sources() -> None:
+    contract = ashare_semantics.rdagent_ashare_semantic_contract()
+    valuation = contract["prompt_projection_payload"]["account_valuation_semantics"]
+    account_source = ACCOUNT_PATH.read_text()
+    position_source = POSITION_PATH.read_text()
+    exchange_source = EXCHANGE_PATH.read_text()
+
+    assert valuation["semantic_name"] == "a_share_account_bar_end_valuation"
+    assert valuation["bar_end_authority"] == "qlib.backtest.account.Account.update_bar_end"
+    assert valuation["position_refresh_authority"] == "qlib.backtest.account.Account.update_current_position"
+    assert valuation["portfolio_metrics_authority"] == "qlib.backtest.account.Account.update_portfolio_metrics"
+    assert valuation["history_position_authority"] == "qlib.backtest.account.Account.update_hist_positions"
+    assert valuation["price_update_authority"] == "qlib.backtest.position.Position.update_stock_price"
+    assert valuation["value_authority"] == "qlib.backtest.position.Position.calculate_value"
+    assert valuation["stock_value_authority"] == "qlib.backtest.position.Position.calculate_stock_value"
+    assert valuation["holding_count_authority"] == "qlib.backtest.position.Position.add_count_all"
+    assert valuation["ashare_sellable_release_authority"] == "qlib.backtest.position.AsharePosition.add_count_all"
+    assert valuation["close_price_authority"] == "qlib.backtest.exchange.Exchange.get_close"
+    assert valuation["bar_end_sequence"] == [
+        "refresh_current_position_prices_and_holding_counts",
+        "update_portfolio_metrics_when_enabled",
+        "snapshot_history_positions_when_enabled",
+        "update_trade_indicators",
+    ]
+    assert valuation["mark_price_rule"] == "non_suspended_positions_mark_to_bar_close_at_bar_end"
+    assert valuation["suspension_price_rule"] == "suspended_positions_keep_previous_price_during_bar_end_refresh"
+    assert valuation["account_value_rule"] == "account_value_equals_stock_value_plus_cash_plus_cash_delay"
+    assert valuation["stock_value_rule"] == "stock_value_equals_position_amount_times_current_position_price"
+    assert (
+        valuation["portfolio_return_rule"]
+        == "return_rate_uses_account_earning_plus_current_cost_over_last_account_value"
+    )
+    assert (
+        valuation["history_snapshot_rule"]
+        == "history_positions_store_deepcopy_after_now_account_value_and_weights_refresh"
+    )
+    assert valuation["holding_count_rule"] == "bar_end_refresh_increments_position_count_for_account_frequency"
+    assert (
+        valuation["daily_sellable_release_rule"]
+        == "ashare_day_bar_count_refresh_releases_total_amount_to_sellable_amount"
+    )
+    assert (
+        valuation["infinite_position_rule"] == "skip_update_position_does_not_refresh_prices_counts_metrics_or_history"
+    )
+    assert valuation["rdagent_rule"] == "describe_only_do_not_redefine_account_valuation_or_bar_end_refresh"
+    assert "def update_bar_end(" in account_source
+    assert "self.update_current_position(trade_start_time, trade_end_time, trade_exchange)" in account_source
+    assert "self.update_portfolio_metrics(trade_start_time, trade_end_time)" in account_source
+    assert "self.update_hist_positions(trade_start_time)" in account_source
+    assert "if self.current_position.skip_update():" in account_source
+    assert "if trade_exchange.check_stock_suspended(code, trade_start_time, trade_end_time):" in account_source
+    assert "bar_close = cast(float, trade_exchange.get_close(code, trade_start_time, trade_end_time))" in account_source
+    assert "self.current_position.update_stock_price(stock_id=code, price=bar_close)" in account_source
+    assert "self.current_position.add_count_all(bar=self.freq)" in account_source
+    assert "now_account_value = self.current_position.calculate_value()" in account_source
+    assert "now_stock_value = self.current_position.calculate_stock_value()" in account_source
+    assert "return_rate=(now_earning + now_cost) / last_account_value" in account_source
+    assert 'self.current_position.position["now_account_value"] = now_account_value' in account_source
+    assert "self.current_position.update_weight_all()" in account_source
+    assert "copy.deepcopy(self.current_position)" in account_source
+    assert 'self.position[stock_id]["price"] = price' in position_source
+    assert 'value += self.position[stock_id]["amount"] * self.position[stock_id]["price"]' in position_source
+    assert 'value += self.position["cash"] + self.position.get("cash_delay", 0.0)' in position_source
+    assert 'self.position[code][f"count_{bar}"] += 1' in position_source
+    assert 'self.position[stock_id][self.SELLABLE_AMOUNT_FIELD] = self.position[stock_id]["amount"]' in (
+        position_source
+    )
+    assert "def get_close(" in exchange_source
+
+
 def test_ashare_cash_settlement_contract_matches_position_source() -> None:
     contract = ashare_semantics.rdagent_ashare_semantic_contract()
     cash_settlement = contract["prompt_projection_payload"]["cash_settlement_semantics"]
@@ -1090,6 +1193,14 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
     assert (
         round_tripped["prompt_projection_payload"]["account_update_semantics"]["account_update_authority"]
         == "qlib.backtest.account.Account.update_order"
+    )
+    assert (
+        round_tripped["prompt_projection_payload"]["account_valuation_semantics"]["rdagent_rule"]
+        == "describe_only_do_not_redefine_account_valuation_or_bar_end_refresh"
+    )
+    assert (
+        round_tripped["prompt_projection_payload"]["account_valuation_semantics"]["value_authority"]
+        == "qlib.backtest.position.Position.calculate_value"
     )
     assert (
         round_tripped["prompt_projection_payload"]["suspension_tradability_semantics"]["rdagent_rule"]
