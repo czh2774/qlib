@@ -252,6 +252,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "execution_price_semantics",
         "price_adjustment_semantics",
         "price_limit_semantics",
+        "order_tradability_semantics",
         "settlement_semantics",
         "cash_settlement_semantics",
         "cash_constraint_semantics",
@@ -298,6 +299,21 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "commit_rule": "settle_commit_moves_cash_delay_into_cash_and_clears_delay_state",
         "rdagent_rule": "describe_only_do_not_redefine_cash_settlement_or_sell_proceeds_availability",
     }
+    order_tradability_semantics = {
+        "semantic_name": "a_share_order_tradability_gate",
+        "runtime_authority": "qlib.backtest.exchange.Exchange.check_order",
+        "tradability_authority": "qlib.backtest.exchange.Exchange.is_stock_tradable",
+        "suspension_authority": "qlib.backtest.exchange.Exchange.check_stock_suspended",
+        "price_limit_authority": "qlib.backtest.exchange.Exchange.check_stock_limit",
+        "failure_result": "deal_amount_zero_trade_value_zero_cost_nan_price",
+        "failed_order_state_field": "Order.deal_amount",
+        "directional_limit_rule": "buy_orders_check_limit_buy_and_sell_orders_check_limit_sell",
+        "all_direction_limit_rule": "missing_direction_checks_any_buy_or_sell_limit",
+        "suspension_rule": "missing_close_or_unknown_stock_is_not_tradable",
+        "limit_rule": "limit_flags_true_mark_direction_not_tradable",
+        "decision_rule": "check_order_delegates_to_is_stock_tradable_before_deal_execution",
+        "rdagent_rule": "describe_only_do_not_redefine_order_tradability_or_limit_checks",
+    }
     semantic_fingerprint = _stable_semantic_fingerprint(
         {
             "schema_version": schema_version,
@@ -305,6 +321,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "runtime_surfaces": runtime_surfaces,
             "universe_membership_semantics": universe_membership_semantics,
             "cash_settlement_semantics": cash_settlement_semantics,
+            "order_tradability_semantics": order_tradability_semantics,
             "rdagent_must_not_redefine": rdagent_must_not_redefine,
         }
     )
@@ -330,6 +347,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "redefine_trade_unit_or_position_type",
             "redefine_price_limit_thresholds_or_authoritative_fields",
             "treat_board_fallback_as_primary_price_limit_authority",
+            "redefine_order_tradability_or_limit_checks",
             "redefine_settlement_or_sellable_position_state",
             "redefine_cash_settlement_or_sell_proceeds_availability",
             "redefine_cash_buying_power_or_shorting_policy",
@@ -488,6 +506,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "runtime_authority": "qlib.backtest.ashare_semantics.JoinQuantAshareBacktestPolicy.apply_price_limits",
             "rdagent_rule": "describe_only_do_not_redefine_price_limit_thresholds_or_fields",
         },
+        "order_tradability_semantics": order_tradability_semantics,
         "settlement_semantics": {
             "semantic_name": "a_share_t_plus_1_stock_settlement",
             "settlement_rule": market_semantics["settlement_rule"],
@@ -560,7 +579,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "relationship_rule": (
                 "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
                 "but it must not redefine universe-membership, trading-calendar/data-frequency, trade unit, position, execution-price, price-adjustment, "
-                "suspension/tradability, price-limit, settlement, cash-settlement, cash/shorting, liquidity/capacity, or cost semantics."
+                "suspension/tradability, price-limit, order-tradability, settlement, cash-settlement, cash/shorting, liquidity/capacity, or cost semantics."
             ),
             "fail_closed_on_missing_contract": True,
         },
@@ -575,6 +594,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
                 "runtime_surfaces",
                 "universe_membership_semantics",
                 "cash_settlement_semantics",
+                "order_tradability_semantics",
                 "rdagent_must_not_redefine",
             ],
             "rdagent_required_evidence_fields": [
@@ -610,6 +630,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
                 "execution_price_semantics",
                 "price_adjustment_semantics",
                 "price_limit_semantics",
+                "order_tradability_semantics",
                 "settlement_semantics",
                 "cash_settlement_semantics",
                 "cash_constraint_semantics",
