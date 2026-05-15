@@ -248,6 +248,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     strict_contract = ashare_semantics.rdagent_ashare_semantic_contract()
     relaxed_contract = ashare_semantics.rdagent_ashare_semantic_contract(strict_price_limit=False)
     evidence = strict_contract["evidence_contract"]
+    prompt_payload = strict_contract["prompt_projection_payload"]
 
     assert evidence["fingerprint_algorithm"] == "sha256_json_canonical_v1"
     assert len(evidence["semantic_fingerprint"]) == 64
@@ -262,6 +263,18 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "runtime_surfaces.backtest_kwargs" in strict_contract["projection_contract"]["rdagent_prompt_forbidden_fields"]
     )
     assert "market_semantics.cost_model" in strict_contract["projection_contract"]["rdagent_prompt_forbidden_fields"]
+    assert prompt_payload["projection_id"] == "qlib_joinquant_ashare_prompt_projection_v1"
+    assert prompt_payload["semantic_fingerprint"] == evidence["semantic_fingerprint"]
+    assert prompt_payload["market_semantics"] == {
+        "market": "china_a_share",
+        "region": "cn",
+        "trade_unit": 100,
+        "position_type": "AsharePosition",
+        "limit_threshold": "joinquant_ashare",
+        "authoritative_limit_fields": ["$up_limit", "$down_limit"],
+    }
+    assert not _contains_key(prompt_payload, {"runtime_surfaces", "cost_model", "exchange_kwargs", "backtest_kwargs"})
+    assert "open_cost" not in json.dumps(prompt_payload, sort_keys=True)
 
 
 def test_rdagent_ashare_contract_splits_prompt_projection_from_runtime_handoff() -> None:
@@ -292,6 +305,7 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
     assert round_tripped["runtime_surfaces"]["exchange_kwargs"]["ashare_price_limit_mode"] == "auto"
     assert round_tripped["market_semantics"]["cost_model"]["close_tax"] == pytest.approx(0.001)
     assert round_tripped["failure_semantics"]["malformed_contract"] == "fail_closed"
+    assert round_tripped["prompt_projection_payload"]["projection_id"] == "qlib_joinquant_ashare_prompt_projection_v1"
     assert round_tripped["runtime_handoff_contract"]["mutation_policy"] == "pass_through_only"
 
 
@@ -321,3 +335,11 @@ def test_exchange_source_delegates_joinquant_ashare_limits_to_policy() -> None:
     assert "self._joinquant_ashare_policy.calculate_trade_cost" in source
     assert "necessary_fields.add(self._joinquant_ashare_policy.up_limit_field)" in source
     assert "necessary_fields.add(self._joinquant_ashare_policy.down_limit_field)" in source
+
+
+def _contains_key(value: object, forbidden: set[str]) -> bool:
+    if isinstance(value, dict):
+        return any(str(key) in forbidden or _contains_key(item, forbidden) for key, item in value.items())
+    if isinstance(value, list):
+        return any(_contains_key(item, forbidden) for item in value)
+    return False
