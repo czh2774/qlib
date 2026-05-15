@@ -337,7 +337,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
             "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
             "but it must not redefine universe-membership, trading-calendar/data-frequency, trade unit, position, execution-price, "
             "price-adjustment, "
-            "suspension/tradability, price-limit, order-tradability, order-fill, settlement, cash-settlement, cash/shorting, liquidity/capacity, or cost semantics."
+            "suspension/tradability, price-limit, order-tradability, order-fill, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
         ),
         "fail_closed_on_missing_contract": True,
     }
@@ -360,6 +360,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     )
     assert "redefine_order_tradability_or_limit_checks" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert "redefine_order_fill_amount_or_clip_sequence" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
+    assert "redefine_market_impact_or_cost_ratio" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert (
         "redefine_settlement_or_sellable_position_state" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     )
@@ -375,6 +376,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     assert "universe_membership_semantics" in contract["rdagent_must_not_redefine"]
     assert "trading_calendar_semantics" in contract["rdagent_must_not_redefine"]
     assert "transaction_cost_semantics" in contract["rdagent_must_not_redefine"]
+    assert "market_impact_semantics" in contract["rdagent_must_not_redefine"]
     assert "suspension_tradability_semantics" in contract["rdagent_must_not_redefine"]
     assert "execution_price_semantics" in contract["rdagent_must_not_redefine"]
     assert "price_adjustment_semantics" in contract["rdagent_must_not_redefine"]
@@ -416,6 +418,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "cash_settlement_semantics" in evidence["fingerprint_scope"]
     assert "order_tradability_semantics" in evidence["fingerprint_scope"]
     assert "order_fill_amount_semantics" in evidence["fingerprint_scope"]
+    assert "market_impact_semantics" in evidence["fingerprint_scope"]
     assert "qlib_contract_fingerprint" in evidence["rdagent_required_evidence_fields"]
     assert (
         "runtime_surfaces.backtest_kwargs" in strict_contract["projection_contract"]["rdagent_prompt_forbidden_fields"]
@@ -510,6 +513,23 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "numeric_values_exposure": "runtime_handoff_only_not_prompt_projection",
         "runtime_authority": "qlib.backtest.ashare_semantics.JoinQuantAshareBacktestPolicy.calculate_trade_cost",
         "rdagent_rule": "describe_only_do_not_redefine_transaction_cost_model",
+    }
+    assert prompt_payload["market_impact_semantics"] == {
+        "semantic_name": "a_share_market_impact_cost_adjustment",
+        "runtime_authority": "qlib.backtest.exchange.Exchange._calc_trade_info_by_order",
+        "cost_authority": "qlib.backtest.exchange.Exchange._calculate_trade_cost",
+        "volume_authority": "qlib.backtest.exchange.Exchange.get_volume",
+        "capacity_authority": "qlib.backtest.exchange.Exchange._clip_amount_by_volume",
+        "configuration_parameter": "impact_cost",
+        "volume_field": "$volume",
+        "total_trade_value_rule": "total_trade_value_equals_quote_volume_times_trade_price",
+        "impact_cost_ratio_rule": "impact_cost_times_post_volume_clip_trade_value_over_total_trade_value_squared",
+        "missing_volume_rule": "missing_zero_or_nan_total_trade_value_uses_raw_impact_cost_ratio",
+        "cost_ratio_rule": "adjusted_cost_ratio_is_added_to_buy_or_sell_cost_ratio_before_cash_guards",
+        "final_cost_rule": "trade_cost_is_recomputed_after_final_deal_amount_with_adjusted_cost_ratio",
+        "joinquant_cost_rule": "joinquant_ashare_policy_receives_adjusted_cost_ratio_as_impact_cost",
+        "numeric_value_exposure": "runtime_handoff_only_not_prompt_projection",
+        "rdagent_rule": "describe_only_do_not_redefine_market_impact_or_cost_ratio",
     }
     assert prompt_payload["suspension_tradability_semantics"] == {
         "semantic_name": "a_share_suspension_tradability",
@@ -689,6 +709,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "universe_membership_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "trading_calendar_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "transaction_cost_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
+    assert "market_impact_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert (
         "suspension_tradability_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     )
@@ -819,6 +840,42 @@ def test_ashare_order_fill_amount_contract_matches_exchange_source() -> None:
     assert "return trade_price, trade_val, trade_cost" in exchange_source
 
 
+def test_ashare_market_impact_contract_matches_exchange_source() -> None:
+    contract = ashare_semantics.rdagent_ashare_semantic_contract()
+    market_impact = contract["prompt_projection_payload"]["market_impact_semantics"]
+    exchange_source = EXCHANGE_PATH.read_text()
+
+    assert market_impact["semantic_name"] == "a_share_market_impact_cost_adjustment"
+    assert market_impact["runtime_authority"] == "qlib.backtest.exchange.Exchange._calc_trade_info_by_order"
+    assert market_impact["cost_authority"] == "qlib.backtest.exchange.Exchange._calculate_trade_cost"
+    assert market_impact["volume_authority"] == "qlib.backtest.exchange.Exchange.get_volume"
+    assert market_impact["capacity_authority"] == "qlib.backtest.exchange.Exchange._clip_amount_by_volume"
+    assert market_impact["configuration_parameter"] == "impact_cost"
+    assert market_impact["volume_field"] == "$volume"
+    assert (
+        market_impact["impact_cost_ratio_rule"]
+        == "impact_cost_times_post_volume_clip_trade_value_over_total_trade_value_squared"
+    )
+    assert market_impact["missing_volume_rule"] == "missing_zero_or_nan_total_trade_value_uses_raw_impact_cost_ratio"
+    assert (
+        market_impact["final_cost_rule"] == "trade_cost_is_recomputed_after_final_deal_amount_with_adjusted_cost_ratio"
+    )
+    assert market_impact["numeric_value_exposure"] == "runtime_handoff_only_not_prompt_projection"
+    assert (
+        "total_trade_val = cast(float, self.get_volume(order.stock_id, order.start_time, order.end_time)) * trade_price"
+        in exchange_source
+    )
+    assert "self._clip_amount_by_volume(order, dealt_order_amount)" in exchange_source
+    assert "adj_cost_ratio = self.impact_cost" in exchange_source
+    assert "adj_cost_ratio = self.impact_cost * (trade_val / total_trade_val) ** 2" in exchange_source
+    assert "cost_ratio = self.close_cost + adj_cost_ratio" in exchange_source
+    assert "cost_ratio = self.open_cost + adj_cost_ratio" in exchange_source
+    assert "impact_cost=adj_cost_ratio" in exchange_source
+    assert "trade_cost = self._calculate_trade_cost(order.direction, trade_val, cost_ratio, adj_cost_ratio)" in (
+        exchange_source
+    )
+
+
 def test_ashare_cash_settlement_contract_matches_position_source() -> None:
     contract = ashare_semantics.rdagent_ashare_semantic_contract()
     cash_settlement = contract["prompt_projection_payload"]["cash_settlement_semantics"]
@@ -944,6 +1001,14 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
     assert (
         round_tripped["prompt_projection_payload"]["transaction_cost_semantics"]["numeric_values_exposure"]
         == "runtime_handoff_only_not_prompt_projection"
+    )
+    assert (
+        round_tripped["prompt_projection_payload"]["market_impact_semantics"]["rdagent_rule"]
+        == "describe_only_do_not_redefine_market_impact_or_cost_ratio"
+    )
+    assert (
+        round_tripped["prompt_projection_payload"]["market_impact_semantics"]["runtime_authority"]
+        == "qlib.backtest.exchange.Exchange._calc_trade_info_by_order"
     )
     assert (
         round_tripped["prompt_projection_payload"]["suspension_tradability_semantics"]["rdagent_rule"]
