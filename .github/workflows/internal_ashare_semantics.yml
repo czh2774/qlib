@@ -12,6 +12,7 @@ on:
       - "qlib/backtest/executor.py"
       - "qlib/backtest/position.py"
       - "qlib/backtest/report.py"
+      - "qlib/backtest/signal.py"
       - "qlib/backtest/utils.py"
       - "qlib/contrib/eva/alpha.py"
       - "qlib/contrib/evaluate.py"
@@ -35,6 +36,7 @@ on:
       - "qlib/backtest/executor.py"
       - "qlib/backtest/position.py"
       - "qlib/backtest/report.py"
+      - "qlib/backtest/signal.py"
       - "qlib/backtest/utils.py"
       - "qlib/contrib/eva/alpha.py"
       - "qlib/contrib/evaluate.py"
@@ -112,6 +114,7 @@ jobs:
             qlib/backtest/executor.py \
             qlib/backtest/position.py \
             qlib/backtest/report.py \
+            qlib/backtest/signal.py \
             qlib/backtest/utils.py \
             qlib/contrib/data/handler.py \
             qlib/contrib/eva/alpha.py \

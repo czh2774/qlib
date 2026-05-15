@@ -18,6 +18,7 @@ EXCHANGE_PATH = REPO_ROOT / "qlib/backtest/exchange.py"
 EXECUTOR_PATH = REPO_ROOT / "qlib/backtest/executor.py"
 POSITION_PATH = REPO_ROOT / "qlib/backtest/position.py"
 REPORT_PATH = REPO_ROOT / "qlib/backtest/report.py"
+SIGNAL_PATH = REPO_ROOT / "qlib/backtest/signal.py"
 UTILS_PATH = REPO_ROOT / "qlib/backtest/utils.py"
 ALPHA_PATH = REPO_ROOT / "qlib/contrib/eva/alpha.py"
 EVALUATE_PATH = REPO_ROOT / "qlib/contrib/evaluate.py"
@@ -350,7 +351,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
             "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
             "but it must not redefine universe-membership, trading-calendar/data-frequency, trade unit, position, execution-price, "
             "price-adjustment, "
-            "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, executor/trade-decision lifecycle, strategy signal-to-order generation, supervised label, signal IC, portfolio risk analysis, benchmark return, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
+            "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, executor/trade-decision lifecycle, strategy signal-to-order generation, supervised label, prediction signal, signal IC, portfolio risk analysis, benchmark return, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
         ),
         "fail_closed_on_missing_contract": True,
     }
@@ -390,6 +391,10 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     assert (
         "redefine_supervised_label_expression_or_horizon" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     )
+    assert (
+        "redefine_prediction_signal_score_or_return_realization"
+        in contract["semantic_boundary"]["rdagent_forbidden_actions"]
+    )
     assert "redefine_signal_ic_or_rank_ic_metrics" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert "redefine_portfolio_risk_analysis_metrics" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert (
@@ -418,6 +423,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     assert "executor_decision_semantics" in contract["rdagent_must_not_redefine"]
     assert "strategy_order_semantics" in contract["rdagent_must_not_redefine"]
     assert "supervised_label_semantics" in contract["rdagent_must_not_redefine"]
+    assert "prediction_signal_semantics" in contract["rdagent_must_not_redefine"]
     assert "signal_ic_semantics" in contract["rdagent_must_not_redefine"]
     assert "portfolio_risk_semantics" in contract["rdagent_must_not_redefine"]
     assert "benchmark_return_semantics" in contract["rdagent_must_not_redefine"]
@@ -469,6 +475,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "executor_decision_semantics" in evidence["fingerprint_scope"]
     assert "strategy_order_semantics" in evidence["fingerprint_scope"]
     assert "supervised_label_semantics" in evidence["fingerprint_scope"]
+    assert "prediction_signal_semantics" in evidence["fingerprint_scope"]
     assert "signal_ic_semantics" in evidence["fingerprint_scope"]
     assert "portfolio_risk_semantics" in evidence["fingerprint_scope"]
     assert "benchmark_return_semantics" in evidence["fingerprint_scope"]
@@ -808,6 +815,33 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "rdagent_prompt_paths": ["rdagent/scenarios/qlib/experiment/prompts.yaml"],
         "rdagent_rule": "describe_only_do_not_redefine_supervised_label_expression_or_horizon",
     }
+    assert prompt_payload["prediction_signal_semantics"] == {
+        "semantic_name": "a_share_prediction_signal_score",
+        "model_signal_authority": "qlib.backtest.signal.ModelSignal",
+        "signal_cache_authority": "qlib.backtest.signal.SignalWCache",
+        "signal_interface_authority": "qlib.backtest.signal.Signal.get_signal",
+        "signal_record_authority": "qlib.workflow.record_temp.SignalRecord",
+        "strategy_consumption_authority": (
+            "qlib.contrib.strategy.signal_strategy.TopkDropoutStrategy.generate_trade_decision"
+        ),
+        "prediction_artifact": "pred.pkl",
+        "prediction_column": "score",
+        "model_predict_rule": "model_predict_output_is_prediction_score_not_realized_or_executable_return",
+        "series_prediction_rule": "series_prediction_is_saved_as_score_column",
+        "dataframe_prediction_rule": "first_prediction_column_is_used_when_prediction_is_dataframe",
+        "resample_rule": "SignalWCache_uses_last_signal_between_decision_start_and_end",
+        "strategy_ranking_rule": "TopkDropoutStrategy_sorts_prediction_scores_descending_for_candidate_selection",
+        "missing_signal_rule": "missing_signal_returns_empty_TradeDecisionWO",
+        "label_alignment_rule": "prediction_score_is_trained_against_qlib_owned_LABEL0_without_redefining_return_horizon",
+        "prompt_wording_rule": (
+            "describe_as_prediction_signal_score_for_LABEL0_not_realized_future_return_or_guaranteed_portfolio_return"
+        ),
+        "rdagent_prompt_paths": [
+            "rdagent/scenarios/qlib/experiment/prompts.yaml",
+            "rdagent/scenarios/qlib/prompts.yaml",
+        ],
+        "rdagent_rule": "describe_only_do_not_redefine_prediction_signal_score_or_return_realization",
+    }
     assert prompt_payload["portfolio_risk_semantics"] == {
         "semantic_name": "a_share_portfolio_risk_analysis",
         "record_authority": "qlib.workflow.record_temp.PortAnaRecord",
@@ -1083,6 +1117,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "executor_decision_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "strategy_order_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "supervised_label_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
+    assert "prediction_signal_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "signal_ic_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "portfolio_risk_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "benchmark_return_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
@@ -1831,6 +1866,75 @@ def test_ashare_supervised_label_contract_matches_runtime_sources() -> None:
     )
     assert '{"class": "DropnaLabel"}' in handler_source
     assert '"label": kwargs.pop("label", self.get_label_config())' in handler_source
+
+
+def test_ashare_prediction_signal_contract_matches_runtime_sources() -> None:
+    contract = ashare_semantics.rdagent_ashare_semantic_contract()
+    signal_semantics = contract["prompt_projection_payload"]["prediction_signal_semantics"]
+    signal_source = SIGNAL_PATH.read_text()
+    signal_strategy_source = SIGNAL_STRATEGY_PATH.read_text()
+    record_temp_source = RECORD_TEMP_PATH.read_text()
+
+    assert signal_semantics["semantic_name"] == "a_share_prediction_signal_score"
+    assert signal_semantics["model_signal_authority"] == "qlib.backtest.signal.ModelSignal"
+    assert signal_semantics["signal_cache_authority"] == "qlib.backtest.signal.SignalWCache"
+    assert signal_semantics["signal_interface_authority"] == "qlib.backtest.signal.Signal.get_signal"
+    assert signal_semantics["signal_record_authority"] == "qlib.workflow.record_temp.SignalRecord"
+    assert (
+        signal_semantics["strategy_consumption_authority"]
+        == "qlib.contrib.strategy.signal_strategy.TopkDropoutStrategy.generate_trade_decision"
+    )
+    assert signal_semantics["prediction_artifact"] == "pred.pkl"
+    assert signal_semantics["prediction_column"] == "score"
+    assert (
+        signal_semantics["model_predict_rule"]
+        == "model_predict_output_is_prediction_score_not_realized_or_executable_return"
+    )
+    assert signal_semantics["series_prediction_rule"] == "series_prediction_is_saved_as_score_column"
+    assert (
+        signal_semantics["dataframe_prediction_rule"] == "first_prediction_column_is_used_when_prediction_is_dataframe"
+    )
+    assert signal_semantics["resample_rule"] == "SignalWCache_uses_last_signal_between_decision_start_and_end"
+    assert (
+        signal_semantics["strategy_ranking_rule"]
+        == "TopkDropoutStrategy_sorts_prediction_scores_descending_for_candidate_selection"
+    )
+    assert signal_semantics["missing_signal_rule"] == "missing_signal_returns_empty_TradeDecisionWO"
+    assert (
+        signal_semantics["label_alignment_rule"]
+        == "prediction_score_is_trained_against_qlib_owned_LABEL0_without_redefining_return_horizon"
+    )
+    assert signal_semantics["prompt_wording_rule"] == (
+        "describe_as_prediction_signal_score_for_LABEL0_not_realized_future_return_or_guaranteed_portfolio_return"
+    )
+    assert signal_semantics["rdagent_prompt_paths"] == [
+        "rdagent/scenarios/qlib/experiment/prompts.yaml",
+        "rdagent/scenarios/qlib/prompts.yaml",
+    ]
+    assert (
+        signal_semantics["rdagent_rule"]
+        == "describe_only_do_not_redefine_prediction_signal_score_or_return_realization"
+    )
+
+    assert "class ModelSignal(SignalWCache):" in signal_source
+    assert "pred_scores = self.model.predict(dataset)" in signal_source
+    assert "if isinstance(pred_scores, pd.DataFrame):" in signal_source
+    assert "pred_scores = pred_scores.iloc[:, 0]" in signal_source
+    assert 'signal = resam_ts_data(self.signal_cache, start_time=start_time, end_time=end_time, method="last")' in (
+        signal_source
+    )
+    assert "pred = self.model.predict(self.dataset)" in record_temp_source
+    assert 'pred = pred.to_frame("score")' in record_temp_source
+    assert 'self.save(**{"pred.pkl": pred})' in record_temp_source
+    assert "pred_score = self.signal.get_signal(start_time=pred_start_time, end_time=pred_end_time)" in (
+        signal_strategy_source
+    )
+    assert "if isinstance(pred_score, pd.DataFrame):" in signal_strategy_source
+    assert "pred_score = pred_score.iloc[:, 0]" in signal_strategy_source
+    assert "return TradeDecisionWO([], self)" in signal_strategy_source
+    assert "topk_candi = get_first_n(pred_score.sort_values(ascending=False).index, self.topk)" in (
+        signal_strategy_source
+    )
 
 
 def test_ashare_portfolio_risk_contract_matches_runtime_sources() -> None:
