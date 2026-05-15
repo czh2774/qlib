@@ -682,6 +682,9 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "rdagent_model_implementation_prompt_boundary_rule": (
             "rdagent_qlib_model_implementation_prompts_must_treat_model_output_boundary_as_authority_over_generic_model_type_examples"
         ),
+        "rdagent_model_evaluator_prompt_boundary_rule": (
+            "rdagent_qlib_model_evaluator_prompts_must_reject_model_output_boundary_violations_even_when_execution_or_similar_examples_pass"
+        ),
         "rdagent_supported_model_types": ["Tabular", "TimeSeries"],
         "rdagent_forbidden_model_types": ["Graph", "XGBoost"],
         "rdagent_implementation_prompt_paths": [
