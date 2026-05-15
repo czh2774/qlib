@@ -244,6 +244,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
     }
     rdagent_must_not_redefine = [
         "instrument_identity_semantics",
+        "transaction_cost_semantics",
         "trade_unit",
         "position_type",
         "settlement_rule",
@@ -275,6 +276,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         ],
         "rdagent_forbidden_actions": [
             "redefine_instrument_identity_or_board_mapping",
+            "redefine_transaction_cost_model",
             "redefine_trade_unit_or_position_type",
             "redefine_price_limit_thresholds_or_authoritative_fields",
             "redefine_cost_model_or_exchange_kwargs",
@@ -344,6 +346,18 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
                 "qlib.backtest.ashare_semantics.JoinQuantAshareBacktestPolicy.limit_threshold_for_instrument"
             ),
             "rdagent_rule": "describe_only_do_not_redefine_instrument_or_board_identity",
+        },
+        "transaction_cost_semantics": {
+            "semantic_name": "a_share_transaction_cost_structure",
+            "cost_model_scope": "qlib_runtime_execution_only",
+            "buy_cost_components": ["commission", "minimum_commission_floor"],
+            "sell_cost_components": ["commission", "stamp_tax", "minimum_commission_floor"],
+            "minimum_fee_rule": "commission_floor_applies_to_nonzero_trade_value",
+            "zero_trade_rule": "zero_trade_value_has_zero_cost",
+            "market_impact_rule": "optional_impact_cost_is_added_by_runtime_execution",
+            "numeric_values_exposure": "runtime_handoff_only_not_prompt_projection",
+            "runtime_authority": "qlib.backtest.ashare_semantics.JoinQuantAshareBacktestPolicy.calculate_trade_cost",
+            "rdagent_rule": "describe_only_do_not_redefine_transaction_cost_model",
         },
         "price_limit_semantics": {
             "limit_threshold": market_semantics["limit_threshold"],
@@ -431,6 +445,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
                 "market_semantics.limit_threshold",
                 "market_semantics.authoritative_limit_fields",
                 "instrument_identity_semantics",
+                "transaction_cost_semantics",
                 "price_limit_semantics",
                 "settlement_semantics",
                 "order_unit_semantics",
