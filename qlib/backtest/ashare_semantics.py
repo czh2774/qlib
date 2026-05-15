@@ -19,6 +19,7 @@ JOINQUANT_ASHARE_ALIASES = frozenset(
     }
 )
 RDAGENT_ASHARE_CONTRACT_ID = "rdagent_qlib_joinquant_ashare_semantic_contract_v1"
+RDAGENT_ASHARE_RUNTIME_HANDOFF_ID = "qlib_joinquant_ashare_runtime_handoff_v1"
 QLIB_ASHARE_AUTHORITY_COMPONENT = "qlib.backtest.ashare_semantics"
 RDAGENT_ASHARE_CONSUMER_COMPONENT = "rdagent.scenarios.qlib.ashare_semantics"
 
@@ -334,6 +335,30 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
                 "runtime_surfaces.exchange_kwargs",
                 "runtime_surfaces.backtest_kwargs",
                 "market_semantics.cost_model",
+            ],
+        },
+        "runtime_handoff_contract": {
+            "handoff_id": RDAGENT_ASHARE_RUNTIME_HANDOFF_ID,
+            "handoff_kind": "qlib_owned_execution_kwargs",
+            "authority_component": QLIB_ASHARE_AUTHORITY_COMPONENT,
+            "consumer_component": RDAGENT_ASHARE_CONSUMER_COMPONENT,
+            "source_fingerprint": semantic_fingerprint,
+            "payload_paths": [
+                "runtime_surfaces.exchange_kwargs",
+                "runtime_surfaces.backtest_kwargs",
+            ],
+            "forbidden_prompt_paths": [
+                "runtime_surfaces.policy_defaults",
+                "runtime_surfaces.exchange_kwargs",
+                "runtime_surfaces.backtest_kwargs",
+                "market_semantics.cost_model",
+            ],
+            "mutation_policy": "pass_through_only",
+            "consumer_obligations": [
+                "preserve_contract_id_schema_version_and_fingerprint",
+                "preserve_qlib_source_component",
+                "do_not_mutate_runtime_payload_values",
+                "fail_closed_on_missing_payload_or_fingerprint",
             ],
         },
         "market_semantics": market_semantics,

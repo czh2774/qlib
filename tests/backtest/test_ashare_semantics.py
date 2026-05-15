@@ -264,6 +264,24 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "market_semantics.cost_model" in strict_contract["projection_contract"]["rdagent_prompt_forbidden_fields"]
 
 
+def test_rdagent_ashare_contract_splits_prompt_projection_from_runtime_handoff() -> None:
+    contract = ashare_semantics.rdagent_ashare_semantic_contract()
+    handoff = contract["runtime_handoff_contract"]
+
+    assert handoff["handoff_id"] == "qlib_joinquant_ashare_runtime_handoff_v1"
+    assert handoff["handoff_kind"] == "qlib_owned_execution_kwargs"
+    assert handoff["authority_component"] == "qlib.backtest.ashare_semantics"
+    assert handoff["consumer_component"] == "rdagent.scenarios.qlib.ashare_semantics"
+    assert handoff["source_fingerprint"] == contract["evidence_contract"]["semantic_fingerprint"]
+    assert handoff["payload_paths"] == [
+        "runtime_surfaces.exchange_kwargs",
+        "runtime_surfaces.backtest_kwargs",
+    ]
+    assert "runtime_surfaces.policy_defaults" in handoff["forbidden_prompt_paths"]
+    assert handoff["mutation_policy"] == "pass_through_only"
+    assert "do_not_mutate_runtime_payload_values" in handoff["consumer_obligations"]
+
+
 def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
     contract = ashare_semantics.rdagent_ashare_semantic_contract(
         strict_price_limit=False,
@@ -274,6 +292,7 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
     assert round_tripped["runtime_surfaces"]["exchange_kwargs"]["ashare_price_limit_mode"] == "auto"
     assert round_tripped["market_semantics"]["cost_model"]["close_tax"] == pytest.approx(0.001)
     assert round_tripped["failure_semantics"]["malformed_contract"] == "fail_closed"
+    assert round_tripped["runtime_handoff_contract"]["mutation_policy"] == "pass_through_only"
 
 
 def test_exchange_joinquant_ashare_cost_helper_preserves_split_sell_tax() -> None:
