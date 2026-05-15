@@ -334,7 +334,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
         "relationship_rule": (
             "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
             "but it must not redefine trade unit, position, execution-price, price-adjustment, "
-            "suspension/tradability, price-limit, settlement, or cost semantics."
+            "suspension/tradability, price-limit, settlement, cash/shorting, or cost semantics."
         ),
         "fail_closed_on_missing_contract": True,
     }
@@ -353,6 +353,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     assert (
         "redefine_settlement_or_sellable_position_state" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     )
+    assert "redefine_cash_buying_power_or_shorting_policy" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert "redefine_cost_model_or_exchange_kwargs" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert set(contract["failure_semantics"].values()) == {"fail_closed"}
     assert "instrument_identity_semantics" in contract["rdagent_must_not_redefine"]
@@ -362,6 +363,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     assert "price_adjustment_semantics" in contract["rdagent_must_not_redefine"]
     assert "price_limit_semantics" in contract["rdagent_must_not_redefine"]
     assert "settlement_semantics" in contract["rdagent_must_not_redefine"]
+    assert "cash_constraint_semantics" in contract["rdagent_must_not_redefine"]
     assert "cost_model" in contract["rdagent_must_not_redefine"]
     assert contract["market_semantics"]["region"] == "cn"
     assert contract["market_semantics"]["trade_unit"] == 100
@@ -528,6 +530,21 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "exchange_clip_authority": "qlib.backtest.exchange.Exchange._calc_trade_info_by_order",
         "rdagent_rule": "describe_only_do_not_redefine_position_or_settlement",
     }
+    assert prompt_payload["cash_constraint_semantics"] == {
+        "semantic_name": "a_share_cash_buying_power_and_shorting_policy",
+        "cash_state_field": "cash",
+        "cash_query_rule": "buying_power_uses_position_get_cash_without_unsettled_cash",
+        "buy_cash_rule": "buy_orders_are_clipped_by_available_cash_and_transaction_cost",
+        "minimum_cost_rule": "orders_without_cash_for_minimum_cost_are_zeroed",
+        "partial_buy_rule": "cash_insufficient_orders_are_reduced_by_exchange_cash_limit_then_round_lot",
+        "shorting_policy": "equity_short_selling_is_not_enabled",
+        "sell_position_rule": "sell_orders_are_clipped_by_position_get_sellable_amount",
+        "sell_cash_rule": "sell_orders_zero_when_cash_plus_trade_value_cannot_cover_sell_cost",
+        "runtime_authority": "qlib.backtest.exchange.Exchange._calc_trade_info_by_order",
+        "cash_limit_authority": "qlib.backtest.exchange.Exchange._get_buy_amount_by_cash_limit",
+        "position_cash_authority": "qlib.backtest.position.Position.get_cash",
+        "rdagent_rule": "describe_only_do_not_redefine_cash_or_shorting_policy",
+    }
     assert prompt_payload["order_unit_semantics"] == {
         "semantic_name": "a_share_round_lot",
         "qlib_parameter": "trade_unit",
@@ -549,6 +566,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "price_adjustment_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "price_limit_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "settlement_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
+    assert "cash_constraint_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "order_unit_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "settlement_rule" in strict_contract["rdagent_must_not_redefine"]
     assert "same_day_sell_policy" in strict_contract["rdagent_must_not_redefine"]
@@ -573,6 +591,21 @@ def test_rdagent_ashare_contract_splits_prompt_projection_from_runtime_handoff()
     assert "runtime_surfaces.policy_defaults" in handoff["forbidden_prompt_paths"]
     assert handoff["mutation_policy"] == "pass_through_only"
     assert "do_not_mutate_runtime_payload_values" in handoff["consumer_obligations"]
+
+
+def test_ashare_cash_constraint_contract_matches_exchange_source() -> None:
+    contract = ashare_semantics.rdagent_ashare_semantic_contract()
+    cash_semantics = contract["prompt_projection_payload"]["cash_constraint_semantics"]
+    exchange_source = EXCHANGE_PATH.read_text()
+
+    assert cash_semantics["runtime_authority"] == "qlib.backtest.exchange.Exchange._calc_trade_info_by_order"
+    assert cash_semantics["cash_limit_authority"] == "qlib.backtest.exchange.Exchange._get_buy_amount_by_cash_limit"
+    assert cash_semantics["position_cash_authority"] == "qlib.backtest.position.Position.get_cash"
+    assert "cash = position.get_cash()" in exchange_source
+    assert "cash < max(trade_val * cost_ratio, self.min_cost)" in exchange_source
+    assert "max_buy_amount = self._get_buy_amount_by_cash_limit(trade_price, cash, cost_ratio)" in exchange_source
+    assert "TODO: make the trading shortable" in exchange_source
+    assert "position.get_sellable_amount(order.stock_id)" in exchange_source
 
 
 def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
@@ -614,6 +647,10 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
     assert round_tripped["prompt_projection_payload"]["settlement_semantics"]["settlement_rule"] == "t_plus_1_stock"
     assert (
         round_tripped["prompt_projection_payload"]["settlement_semantics"]["sellable_state_field"] == "sellable_amount"
+    )
+    assert (
+        round_tripped["prompt_projection_payload"]["cash_constraint_semantics"]["shorting_policy"]
+        == "equity_short_selling_is_not_enabled"
     )
     assert round_tripped["prompt_projection_payload"]["order_unit_semantics"]["trade_unit"] == 100
     assert (
