@@ -30,6 +30,7 @@ RETIRED_TERMS = (
     "".join(("sync", "-", "simple", "-", "data")),
     "".join(("sync", "_simple")),
     "".join(("verify", "_sync", "_simple")),
+    "".join(("qlib", "_simple", "_cache")),
 )
 
 

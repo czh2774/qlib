@@ -258,7 +258,7 @@ MODE_CONF = {
         # cache
         "expression_cache": DISK_EXPRESSION_CACHE,
         "dataset_cache": DISK_DATASET_CACHE,
-        "local_cache_path": Path("~/.cache/qlib_simple_cache").expanduser().resolve(),
+        "local_cache_path": Path("~/.cache/qlib_dataset_cache").expanduser().resolve(),
         "mount_path": None,
     },
     "client": {
@@ -268,8 +268,8 @@ MODE_CONF = {
         # Using parameter 'remote' to announce the client is using server_cache, and the writing access will be disabled.
         # Disable cache by default. Avoid introduce advanced features for beginners
         "dataset_cache": None,
-        # SimpleDatasetCache directory
-        "local_cache_path": Path("~/.cache/qlib_simple_cache").expanduser().resolve(),
+        # DatasetCache directory
+        "local_cache_path": Path("~/.cache/qlib_dataset_cache").expanduser().resolve(),
         # client config
         "mount_path": None,
         "auto_mount": False,  # The nfs is already mounted on our server[auto_mount: False].
