@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 from pathlib import Path
 
@@ -213,6 +214,40 @@ def test_joinquant_ashare_exchange_kwargs_expose_split_cost_policy_options() -> 
         "close_tax": pytest.approx(0.001),
         "min_cost": pytest.approx(5.0),
     }
+
+
+def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
+    contract = ashare_semantics.rdagent_ashare_semantic_contract()
+
+    assert contract["contract_id"] == ("rdagent_qlib_joinquant_ashare_semantic_contract_v1")
+    assert contract["source_component"] == "qlib.backtest.ashare_semantics"
+    assert contract["consumer_component"] == "rdagent.scenarios.qlib.ashare_semantics"
+    assert contract["relationship"] == {
+        "qlib_role": "executable_backtest_semantic_authority",
+        "rdagent_role": "research_candidate_generation_context_consumer",
+        "relationship_rule": (
+            "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
+            "but it must not redefine trade unit, position, price-limit, or cost semantics."
+        ),
+        "fail_closed_on_missing_contract": True,
+    }
+    assert "cost_model" in contract["rdagent_must_not_redefine"]
+    assert contract["market_semantics"]["region"] == "cn"
+    assert contract["market_semantics"]["trade_unit"] == 100
+    assert contract["market_semantics"]["position_type"] == "AsharePosition"
+    assert contract["runtime_surfaces"]["exchange_kwargs"] == ashare_semantics.joinquant_ashare_exchange_kwargs()
+    assert contract["runtime_surfaces"]["backtest_kwargs"] == ashare_semantics.joinquant_ashare_backtest_kwargs()
+
+
+def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
+    contract = ashare_semantics.rdagent_ashare_semantic_contract(
+        strict_price_limit=False,
+    )
+
+    round_tripped = json.loads(json.dumps(contract, sort_keys=True))
+
+    assert round_tripped["runtime_surfaces"]["exchange_kwargs"]["ashare_price_limit_mode"] == "auto"
+    assert round_tripped["market_semantics"]["cost_model"]["close_tax"] == pytest.approx(0.001)
 
 
 def test_exchange_joinquant_ashare_cost_helper_preserves_split_sell_tax() -> None:

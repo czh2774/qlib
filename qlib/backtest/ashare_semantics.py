@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, fields
+from dataclasses import asdict, dataclass, fields
 from typing import Any, Mapping
 
 import pandas as pd
@@ -16,6 +16,9 @@ JOINQUANT_ASHARE_ALIASES = frozenset(
         "cn_ashare_joinquant",
     }
 )
+RDAGENT_ASHARE_CONTRACT_ID = "rdagent_qlib_joinquant_ashare_semantic_contract_v1"
+QLIB_ASHARE_AUTHORITY_COMPONENT = "qlib.backtest.ashare_semantics"
+RDAGENT_ASHARE_CONSUMER_COMPONENT = "rdagent.scenarios.qlib.ashare_semantics"
 
 
 def is_joinquant_ashare_limit_threshold(value: object) -> bool:
@@ -185,6 +188,71 @@ def joinquant_ashare_backtest_kwargs(*, strict_price_limit: bool = True) -> dict
     return {
         "pos_type": JOINQUANT_ASHARE_POLICY.position_type,
         "exchange_kwargs": joinquant_ashare_exchange_kwargs(strict_price_limit=strict_price_limit),
+    }
+
+
+def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict[str, Any]:
+    """Return the Qlib-owned A-share semantic contract consumed by RD-Agent.
+
+    RD-Agent may use this payload to guide hypothesis, factor, and model
+    generation, but the executable backtest semantics remain owned here.
+    """
+
+    policy = JOINQUANT_ASHARE_POLICY
+    return {
+        "schema_version": "qlib_ashare_semantic_contract.v1",
+        "contract_id": RDAGENT_ASHARE_CONTRACT_ID,
+        "status": "active",
+        "source_component": QLIB_ASHARE_AUTHORITY_COMPONENT,
+        "consumer_component": RDAGENT_ASHARE_CONSUMER_COMPONENT,
+        "relationship": {
+            "qlib_role": "executable_backtest_semantic_authority",
+            "rdagent_role": "research_candidate_generation_context_consumer",
+            "relationship_rule": (
+                "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
+                "but it must not redefine trade unit, position, price-limit, or cost semantics."
+            ),
+            "fail_closed_on_missing_contract": True,
+        },
+        "market_semantics": {
+            "market": "china_a_share",
+            "region": "cn",
+            "trade_unit": policy.trade_unit,
+            "position_type": policy.position_type,
+            "deal_price": policy.deal_price,
+            "limit_threshold": JOINQUANT_ASHARE_LIMIT_THRESHOLD,
+            "limit_threshold_aliases": sorted(JOINQUANT_ASHARE_ALIASES),
+            "price_limit_modes": ["auto", "strict", "board_fallback"],
+            "authoritative_limit_fields": [policy.up_limit_field, policy.down_limit_field],
+            "board_threshold_fields": {
+                "main_board_threshold": policy.main_board_threshold,
+                "star_chinext_threshold": policy.star_chinext_threshold,
+                "bse_threshold": policy.bse_threshold,
+                "chinext_registration_start_date": policy.chinext_registration_start_date,
+            },
+            "cost_model": {
+                "open_cost": policy.open_cost,
+                "close_cost": policy.close_cost,
+                "close_commission": policy.close_commission,
+                "close_tax": policy.close_tax,
+                "min_cost": policy.min_cost,
+            },
+        },
+        "runtime_surfaces": {
+            "policy_class": f"{QLIB_ASHARE_AUTHORITY_COMPONENT}.JoinQuantAshareBacktestPolicy",
+            "policy_defaults": asdict(policy),
+            "exchange_kwargs": joinquant_ashare_exchange_kwargs(strict_price_limit=strict_price_limit),
+            "backtest_kwargs": joinquant_ashare_backtest_kwargs(strict_price_limit=strict_price_limit),
+        },
+        "rdagent_must_not_redefine": [
+            "trade_unit",
+            "position_type",
+            "limit_threshold_aliases",
+            "price_limit_modes",
+            "authoritative_limit_fields",
+            "board_threshold_fields",
+            "cost_model",
+        ],
     }
 
 
