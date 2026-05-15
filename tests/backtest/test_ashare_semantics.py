@@ -22,7 +22,11 @@ SIGNAL_PATH = REPO_ROOT / "qlib/backtest/signal.py"
 UTILS_PATH = REPO_ROOT / "qlib/backtest/utils.py"
 ALPHA_PATH = REPO_ROOT / "qlib/contrib/eva/alpha.py"
 EVALUATE_PATH = REPO_ROOT / "qlib/contrib/evaluate.py"
+ANALYSIS_POSITION_REPORT_PATH = REPO_ROOT / "qlib/contrib/report/analysis_position/report.py"
+ANALYSIS_POSITION_RISK_PATH = REPO_ROOT / "qlib/contrib/report/analysis_position/risk_analysis.py"
 HANDLER_PATH = REPO_ROOT / "qlib/contrib/data/handler.py"
+ONLINE_OPERATOR_PATH = REPO_ROOT / "qlib/contrib/online/operator.py"
+ONLINE_USER_PATH = REPO_ROOT / "qlib/contrib/online/user.py"
 ORDER_GENERATOR_PATH = REPO_ROOT / "qlib/contrib/strategy/order_generator.py"
 SIGNAL_STRATEGY_PATH = REPO_ROOT / "qlib/contrib/strategy/signal_strategy.py"
 DATA_PATH = REPO_ROOT / "qlib/data/data.py"
@@ -352,7 +356,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
             "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
             "but it must not redefine universe-membership, trading-calendar/data-frequency, trade unit, position, execution-price, "
             "price-adjustment, "
-            "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, executor/trade-decision lifecycle, strategy signal-to-order generation, supervised label, prediction signal, signal IC, portfolio risk analysis, feedback metric consumption, benchmark return, universe/benchmark binding, runtime handoff template binding, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
+            "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, executor/trade-decision lifecycle, strategy signal-to-order generation, supervised label, prediction signal, signal IC, portfolio risk analysis, benchmark-relative excess return, feedback metric consumption, benchmark return, universe/benchmark binding, runtime handoff template binding, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
         ),
         "fail_closed_on_missing_contract": True,
     }
@@ -399,6 +403,10 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     assert "redefine_signal_ic_or_rank_ic_metrics" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert "redefine_portfolio_risk_analysis_metrics" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert (
+        "redefine_benchmark_relative_excess_return_or_cost_treatment"
+        in contract["semantic_boundary"]["rdagent_forbidden_actions"]
+    )
+    assert (
         "redefine_feedback_metric_paths_or_label_derived_utility_as_qlib_metric"
         in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     )
@@ -439,6 +447,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     assert "prediction_signal_semantics" in contract["rdagent_must_not_redefine"]
     assert "signal_ic_semantics" in contract["rdagent_must_not_redefine"]
     assert "portfolio_risk_semantics" in contract["rdagent_must_not_redefine"]
+    assert "excess_return_semantics" in contract["rdagent_must_not_redefine"]
     assert "feedback_metric_semantics" in contract["rdagent_must_not_redefine"]
     assert "benchmark_return_semantics" in contract["rdagent_must_not_redefine"]
     assert "universe_benchmark_binding_semantics" in contract["rdagent_must_not_redefine"]
@@ -494,6 +503,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "prediction_signal_semantics" in evidence["fingerprint_scope"]
     assert "signal_ic_semantics" in evidence["fingerprint_scope"]
     assert "portfolio_risk_semantics" in evidence["fingerprint_scope"]
+    assert "excess_return_semantics" in evidence["fingerprint_scope"]
     assert "feedback_metric_semantics" in evidence["fingerprint_scope"]
     assert "benchmark_return_semantics" in evidence["fingerprint_scope"]
     assert "universe_benchmark_binding_semantics" in evidence["fingerprint_scope"]
@@ -923,6 +933,36 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         ],
         "rdagent_rule": "describe_only_do_not_redefine_portfolio_risk_analysis_metrics",
     }
+    assert prompt_payload["excess_return_semantics"] == {
+        "semantic_name": "a_share_benchmark_relative_excess_return",
+        "benchmark_dependency": "benchmark_return_semantics",
+        "portfolio_risk_dependency": "portfolio_risk_semantics",
+        "report_column_authority": "qlib.backtest.report.PortfolioMetrics",
+        "risk_record_authority": "qlib.workflow.record_temp.PortAnaRecord",
+        "report_graph_authority": "qlib.contrib.report.analysis_position.report._calculate_report_data",
+        "risk_graph_authority": "qlib.contrib.report.analysis_position.risk_analysis._get_risk_analysis_data_with_report",
+        "online_analysis_authority": "qlib.contrib.online.operator",
+        "user_analysis_authority": "qlib.contrib.online.user",
+        "required_report_columns": ["return", "bench", "cost"],
+        "without_cost_field": "excess_return_without_cost",
+        "with_cost_field": "excess_return_with_cost",
+        "without_cost_formula": "return - bench",
+        "with_cost_formula": "return - bench - cost",
+        "cumulative_without_cost_field": "cum_ex_return_wo_cost",
+        "cumulative_with_cost_field": "cum_ex_return_w_cost",
+        "cost_source": "reported_cost_column_from_trade_indicator_semantics",
+        "benchmark_source": "reported_bench_column_from_benchmark_return_semantics",
+        "metric_path_without_cost": "1day.excess_return_without_cost.annualized_return",
+        "metric_path_with_cost": "1day.excess_return_with_cost.annualized_return",
+        "rdagent_prompt_rule": "generated_research_must_report_benchmark_relative_excess_return_not_raw_return",
+        "forbidden_substitutions": [
+            "raw_return_as_excess_return",
+            "market_universe_as_benchmark_return",
+            "with_cost_metric_without_report_cost_column",
+            "prompt_defined_cost_or_benchmark_formula",
+        ],
+        "rdagent_rule": "describe_only_do_not_redefine_benchmark_relative_excess_return",
+    }
     assert prompt_payload["feedback_metric_semantics"] == {
         "semantic_name": "a_share_rd_agent_feedback_metric_consumption",
         "signal_metric_authority": "qlib.workflow.record_temp.SigAnaRecord",
@@ -1201,6 +1241,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "prediction_signal_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "signal_ic_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "portfolio_risk_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
+    assert "excess_return_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "feedback_metric_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "benchmark_return_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert (
@@ -2202,6 +2243,84 @@ def test_ashare_portfolio_risk_contract_matches_runtime_sources() -> None:
     assert 'res = pd.Series(data).to_frame("risk")' in evaluate_source
 
 
+def test_ashare_excess_return_contract_matches_runtime_sources() -> None:
+    contract = ashare_semantics.rdagent_ashare_semantic_contract()
+    excess_return = contract["prompt_projection_payload"]["excess_return_semantics"]
+    record_temp_source = RECORD_TEMP_PATH.read_text()
+    analysis_report_source = ANALYSIS_POSITION_REPORT_PATH.read_text()
+    analysis_risk_source = ANALYSIS_POSITION_RISK_PATH.read_text()
+    online_operator_source = ONLINE_OPERATOR_PATH.read_text()
+    online_user_source = ONLINE_USER_PATH.read_text()
+
+    assert excess_return["semantic_name"] == "a_share_benchmark_relative_excess_return"
+    assert excess_return["benchmark_dependency"] == "benchmark_return_semantics"
+    assert excess_return["portfolio_risk_dependency"] == "portfolio_risk_semantics"
+    assert excess_return["report_column_authority"] == "qlib.backtest.report.PortfolioMetrics"
+    assert excess_return["risk_record_authority"] == "qlib.workflow.record_temp.PortAnaRecord"
+    assert (
+        excess_return["report_graph_authority"] == "qlib.contrib.report.analysis_position.report._calculate_report_data"
+    )
+    assert (
+        excess_return["risk_graph_authority"]
+        == "qlib.contrib.report.analysis_position.risk_analysis._get_risk_analysis_data_with_report"
+    )
+    assert excess_return["online_analysis_authority"] == "qlib.contrib.online.operator"
+    assert excess_return["user_analysis_authority"] == "qlib.contrib.online.user"
+    assert excess_return["required_report_columns"] == ["return", "bench", "cost"]
+    assert excess_return["without_cost_field"] == "excess_return_without_cost"
+    assert excess_return["with_cost_field"] == "excess_return_with_cost"
+    assert excess_return["without_cost_formula"] == "return - bench"
+    assert excess_return["with_cost_formula"] == "return - bench - cost"
+    assert excess_return["cumulative_without_cost_field"] == "cum_ex_return_wo_cost"
+    assert excess_return["cumulative_with_cost_field"] == "cum_ex_return_w_cost"
+    assert excess_return["cost_source"] == "reported_cost_column_from_trade_indicator_semantics"
+    assert excess_return["benchmark_source"] == "reported_bench_column_from_benchmark_return_semantics"
+    assert excess_return["metric_path_without_cost"] == "1day.excess_return_without_cost.annualized_return"
+    assert excess_return["metric_path_with_cost"] == "1day.excess_return_with_cost.annualized_return"
+    assert (
+        excess_return["rdagent_prompt_rule"]
+        == "generated_research_must_report_benchmark_relative_excess_return_not_raw_return"
+    )
+    assert excess_return["forbidden_substitutions"] == [
+        "raw_return_as_excess_return",
+        "market_universe_as_benchmark_return",
+        "with_cost_metric_without_report_cost_column",
+        "prompt_defined_cost_or_benchmark_formula",
+    ]
+    assert excess_return["rdagent_rule"] == "describe_only_do_not_redefine_benchmark_relative_excess_return"
+
+    assert 'analysis["excess_return_without_cost"] = risk_analysis(' in record_temp_source
+    assert 'report_normal["return"] - report_normal["bench"], freq=_analysis_freq' in record_temp_source
+    assert 'analysis["excess_return_with_cost"] = risk_analysis(' in record_temp_source
+    assert 'report_normal["return"] - report_normal["bench"] - report_normal["cost"]' in record_temp_source
+
+    assert 'report_df["cum_ex_return_wo_cost"] = (df["return"] - df["bench"]).cumsum()' in (analysis_report_source)
+    assert 'report_df["cum_ex_return_w_cost"] = (df["return"] - df["bench"] - df["cost"]).cumsum()' in (
+        analysis_report_source
+    )
+    assert 'report_df["cum_ex_return_wo_cost_mdd"] = _calculate_mdd((df["return"] - df["bench"]).cumsum())' in (
+        analysis_report_source
+    )
+    assert (
+        'report_df["cum_ex_return_w_cost_mdd"] = _calculate_mdd((df["return"] - df["cost"] - df["bench"]).cumsum())'
+        in (analysis_report_source)
+    )
+
+    assert (
+        'analysis["excess_return_without_cost"] = risk_analysis(report_normal_df["return"] - report_normal_df["bench"])'
+        in (analysis_risk_source)
+    )
+    assert 'report_normal_df["return"] - report_normal_df["bench"] - report_normal_df["cost"]' in (analysis_risk_source)
+    assert 'r = (portfolio_metrics["return"] - portfolio_metrics["bench"]).dropna()' in online_operator_source
+    assert 'r = (portfolio_metrics["return"] - portfolio_metrics["bench"] - portfolio_metrics["cost"]).dropna()' in (
+        online_operator_source
+    )
+    assert 'r = (portfolio_metrics["return"] - portfolio_metrics["bench"]).dropna()' in online_user_source
+    assert 'r = (portfolio_metrics["return"] - portfolio_metrics["bench"] - portfolio_metrics["cost"]).dropna()' in (
+        online_user_source
+    )
+
+
 def test_ashare_feedback_metric_contract_matches_runtime_sources() -> None:
     contract = ashare_semantics.rdagent_ashare_semantic_contract()
     feedback_metric = contract["prompt_projection_payload"]["feedback_metric_semantics"]
@@ -2571,6 +2690,18 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
     assert (
         round_tripped["prompt_projection_payload"]["portfolio_risk_semantics"]["risk_analysis_authority"]
         == "qlib.contrib.evaluate.risk_analysis"
+    )
+    assert (
+        round_tripped["prompt_projection_payload"]["excess_return_semantics"]["without_cost_formula"]
+        == "return - bench"
+    )
+    assert (
+        round_tripped["prompt_projection_payload"]["excess_return_semantics"]["with_cost_formula"]
+        == "return - bench - cost"
+    )
+    assert (
+        round_tripped["prompt_projection_payload"]["excess_return_semantics"]["rdagent_rule"]
+        == "describe_only_do_not_redefine_benchmark_relative_excess_return"
     )
     assert (
         round_tripped["prompt_projection_payload"]["feedback_metric_semantics"]["derived_bandit_utility_name"]

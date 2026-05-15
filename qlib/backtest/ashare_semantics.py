@@ -258,6 +258,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "prediction_signal_semantics",
         "signal_ic_semantics",
         "portfolio_risk_semantics",
+        "excess_return_semantics",
         "feedback_metric_semantics",
         "benchmark_return_semantics",
         "universe_benchmark_binding_semantics",
@@ -713,6 +714,36 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         ],
         "rdagent_rule": "consume_exact_qlib_metric_paths_and_label_derived_bandit_utility_as_non_qlib_metric",
     }
+    excess_return_semantics = {
+        "semantic_name": "a_share_benchmark_relative_excess_return",
+        "benchmark_dependency": "benchmark_return_semantics",
+        "portfolio_risk_dependency": "portfolio_risk_semantics",
+        "report_column_authority": "qlib.backtest.report.PortfolioMetrics",
+        "risk_record_authority": "qlib.workflow.record_temp.PortAnaRecord",
+        "report_graph_authority": "qlib.contrib.report.analysis_position.report._calculate_report_data",
+        "risk_graph_authority": "qlib.contrib.report.analysis_position.risk_analysis._get_risk_analysis_data_with_report",
+        "online_analysis_authority": "qlib.contrib.online.operator",
+        "user_analysis_authority": "qlib.contrib.online.user",
+        "required_report_columns": ["return", "bench", "cost"],
+        "without_cost_field": "excess_return_without_cost",
+        "with_cost_field": "excess_return_with_cost",
+        "without_cost_formula": "return - bench",
+        "with_cost_formula": "return - bench - cost",
+        "cumulative_without_cost_field": "cum_ex_return_wo_cost",
+        "cumulative_with_cost_field": "cum_ex_return_w_cost",
+        "cost_source": "reported_cost_column_from_trade_indicator_semantics",
+        "benchmark_source": "reported_bench_column_from_benchmark_return_semantics",
+        "metric_path_without_cost": "1day.excess_return_without_cost.annualized_return",
+        "metric_path_with_cost": "1day.excess_return_with_cost.annualized_return",
+        "rdagent_prompt_rule": "generated_research_must_report_benchmark_relative_excess_return_not_raw_return",
+        "forbidden_substitutions": [
+            "raw_return_as_excess_return",
+            "market_universe_as_benchmark_return",
+            "with_cost_metric_without_report_cost_column",
+            "prompt_defined_cost_or_benchmark_formula",
+        ],
+        "rdagent_rule": "describe_only_do_not_redefine_benchmark_relative_excess_return",
+    }
     benchmark_return_semantics = {
         "semantic_name": "a_share_benchmark_return_series",
         "default_benchmark": "SH000300",
@@ -804,6 +835,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "prediction_signal_semantics": prediction_signal_semantics,
             "signal_ic_semantics": signal_ic_semantics,
             "portfolio_risk_semantics": portfolio_risk_semantics,
+            "excess_return_semantics": excess_return_semantics,
             "feedback_metric_semantics": feedback_metric_semantics,
             "benchmark_return_semantics": benchmark_return_semantics,
             "universe_benchmark_binding_semantics": universe_benchmark_binding_semantics,
@@ -845,6 +877,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "redefine_prediction_signal_score_or_return_realization",
             "redefine_signal_ic_or_rank_ic_metrics",
             "redefine_portfolio_risk_analysis_metrics",
+            "redefine_benchmark_relative_excess_return_or_cost_treatment",
             "redefine_feedback_metric_paths_or_label_derived_utility_as_qlib_metric",
             "redefine_benchmark_return_series_or_default_benchmark",
             "redefine_universe_benchmark_template_binding_or_cross_alias_market_and_benchmark",
@@ -966,6 +999,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "prediction_signal_semantics": prediction_signal_semantics,
         "signal_ic_semantics": signal_ic_semantics,
         "portfolio_risk_semantics": portfolio_risk_semantics,
+        "excess_return_semantics": excess_return_semantics,
         "feedback_metric_semantics": feedback_metric_semantics,
         "benchmark_return_semantics": benchmark_return_semantics,
         "universe_benchmark_binding_semantics": universe_benchmark_binding_semantics,
@@ -1110,7 +1144,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "relationship_rule": (
                 "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
                 "but it must not redefine universe-membership, trading-calendar/data-frequency, trade unit, position, execution-price, price-adjustment, "
-                "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, executor/trade-decision lifecycle, strategy signal-to-order generation, supervised label, prediction signal, signal IC, portfolio risk analysis, feedback metric consumption, benchmark return, universe/benchmark binding, runtime handoff template binding, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
+                "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, executor/trade-decision lifecycle, strategy signal-to-order generation, supervised label, prediction signal, signal IC, portfolio risk analysis, benchmark-relative excess return, feedback metric consumption, benchmark return, universe/benchmark binding, runtime handoff template binding, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
             ),
             "fail_closed_on_missing_contract": True,
         },
@@ -1137,6 +1171,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
                 "prediction_signal_semantics",
                 "signal_ic_semantics",
                 "portfolio_risk_semantics",
+                "excess_return_semantics",
                 "feedback_metric_semantics",
                 "benchmark_return_semantics",
                 "universe_benchmark_binding_semantics",
@@ -1182,6 +1217,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
                 "prediction_signal_semantics",
                 "signal_ic_semantics",
                 "portfolio_risk_semantics",
+                "excess_return_semantics",
                 "feedback_metric_semantics",
                 "benchmark_return_semantics",
                 "universe_benchmark_binding_semantics",
