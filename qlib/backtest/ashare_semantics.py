@@ -213,6 +213,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
     market_semantics = {
         "market": "china_a_share",
         "region": "cn",
+        "data_frequency": "day",
         "trade_unit": policy.trade_unit,
         "position_type": policy.position_type,
         "settlement_rule": "t_plus_1_stock",
@@ -244,6 +245,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
     }
     rdagent_must_not_redefine = [
         "instrument_identity_semantics",
+        "trading_calendar_semantics",
         "transaction_cost_semantics",
         "suspension_tradability_semantics",
         "execution_price_semantics",
@@ -256,6 +258,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "position_type",
         "settlement_rule",
         "same_day_sell_policy",
+        "data_frequency",
         "limit_threshold_aliases",
         "price_limit_modes",
         "authoritative_limit_fields",
@@ -283,6 +286,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         ],
         "rdagent_forbidden_actions": [
             "redefine_instrument_identity_or_board_mapping",
+            "redefine_trading_calendar_or_data_frequency",
             "redefine_transaction_cost_model",
             "redefine_suspension_or_tradability_rules",
             "redefine_execution_price_or_frequency",
@@ -321,6 +325,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "market_semantics": {
             "market": market_semantics["market"],
             "region": market_semantics["region"],
+            "data_frequency": market_semantics["data_frequency"],
             "trade_unit": market_semantics["trade_unit"],
             "position_type": market_semantics["position_type"],
             "settlement_rule": market_semantics["settlement_rule"],
@@ -360,6 +365,20 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
                 "qlib.backtest.ashare_semantics.JoinQuantAshareBacktestPolicy.limit_threshold_for_instrument"
             ),
             "rdagent_rule": "describe_only_do_not_redefine_instrument_or_board_identity",
+        },
+        "trading_calendar_semantics": {
+            "semantic_name": "a_share_daily_trading_calendar",
+            "calendar_frequency": "day",
+            "calendar_provider_authority": "qlib.data.data.CalendarProvider.calendar",
+            "calendar_locator_authority": "qlib.data.data.CalendarProvider.locate_index",
+            "exchange_frequency_parameter": "freq",
+            "exchange_default_frequency": "day",
+            "index_level": "datetime",
+            "instrument_window_rule": "instrument_membership_is_filtered_against_calendar_boundaries",
+            "non_trading_day_rule": "calendar_locate_index_maps_start_forward_and_end_backward_to_real_trading_days",
+            "future_calendar_rule": "future_trading_days_require_qlib_future_calendar_support_not_prompt_invention",
+            "synthetic_session_rule": "rdagent_must_not_invent_non_qlib_calendar_sessions",
+            "rdagent_rule": "describe_only_do_not_redefine_trading_calendar_or_data_frequency",
         },
         "transaction_cost_semantics": {
             "semantic_name": "a_share_transaction_cost_structure",
@@ -501,7 +520,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "rdagent_role": "research_candidate_generation_context_consumer",
             "relationship_rule": (
                 "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
-                "but it must not redefine trade unit, position, execution-price, price-adjustment, "
+                "but it must not redefine trading-calendar/data-frequency, trade unit, position, execution-price, price-adjustment, "
                 "suspension/tradability, price-limit, settlement, cash/shorting, liquidity/capacity, or cost semantics."
             ),
             "fail_closed_on_missing_contract": True,
@@ -536,12 +555,14 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
                 "evidence_contract.semantic_fingerprint",
                 "market_semantics.market",
                 "market_semantics.region",
+                "market_semantics.data_frequency",
                 "market_semantics.trade_unit",
                 "market_semantics.position_type",
                 "market_semantics.settlement_rule",
                 "market_semantics.limit_threshold",
                 "market_semantics.authoritative_limit_fields",
                 "instrument_identity_semantics",
+                "trading_calendar_semantics",
                 "transaction_cost_semantics",
                 "suspension_tradability_semantics",
                 "execution_price_semantics",
