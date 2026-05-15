@@ -14,6 +14,7 @@ MODULE_PATH = REPO_ROOT / "qlib/backtest/ashare_semantics.py"
 ACCOUNT_PATH = REPO_ROOT / "qlib/backtest/account.py"
 EXCHANGE_PATH = REPO_ROOT / "qlib/backtest/exchange.py"
 POSITION_PATH = REPO_ROOT / "qlib/backtest/position.py"
+REPORT_PATH = REPO_ROOT / "qlib/backtest/report.py"
 DATA_PATH = REPO_ROOT / "qlib/data/data.py"
 
 spec = importlib.util.spec_from_file_location("ashare_semantics_under_test", MODULE_PATH)
@@ -338,7 +339,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
             "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
             "but it must not redefine universe-membership, trading-calendar/data-frequency, trade unit, position, execution-price, "
             "price-adjustment, "
-            "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
+            "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
         ),
         "fail_closed_on_missing_contract": True,
     }
@@ -367,6 +368,10 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     )
     assert "redefine_account_valuation_or_bar_end_refresh" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert (
+        "redefine_trade_execution_indicators_or_quality_metrics"
+        in contract["semantic_boundary"]["rdagent_forbidden_actions"]
+    )
+    assert (
         "redefine_settlement_or_sellable_position_state" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     )
     assert (
@@ -384,6 +389,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     assert "market_impact_semantics" in contract["rdagent_must_not_redefine"]
     assert "account_update_semantics" in contract["rdagent_must_not_redefine"]
     assert "account_valuation_semantics" in contract["rdagent_must_not_redefine"]
+    assert "trade_indicator_semantics" in contract["rdagent_must_not_redefine"]
     assert "suspension_tradability_semantics" in contract["rdagent_must_not_redefine"]
     assert "execution_price_semantics" in contract["rdagent_must_not_redefine"]
     assert "price_adjustment_semantics" in contract["rdagent_must_not_redefine"]
@@ -428,6 +434,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "market_impact_semantics" in evidence["fingerprint_scope"]
     assert "account_update_semantics" in evidence["fingerprint_scope"]
     assert "account_valuation_semantics" in evidence["fingerprint_scope"]
+    assert "trade_indicator_semantics" in evidence["fingerprint_scope"]
     assert "qlib_contract_fingerprint" in evidence["rdagent_required_evidence_fields"]
     assert (
         "runtime_surfaces.backtest_kwargs" in strict_contract["projection_contract"]["rdagent_prompt_forbidden_fields"]
@@ -587,6 +594,47 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "daily_sellable_release_rule": "ashare_day_bar_count_refresh_releases_total_amount_to_sellable_amount",
         "infinite_position_rule": "skip_update_position_does_not_refresh_prices_counts_metrics_or_history",
         "rdagent_rule": "describe_only_do_not_redefine_account_valuation_or_bar_end_refresh",
+    }
+    assert prompt_payload["trade_indicator_semantics"] == {
+        "semantic_name": "a_share_trade_execution_indicator",
+        "account_indicator_authority": "qlib.backtest.account.Account.update_indicator",
+        "indicator_authority": "qlib.backtest.report.Indicator",
+        "atomic_order_update_authority": "qlib.backtest.report.Indicator.update_order_indicators",
+        "nested_order_aggregation_authority": "qlib.backtest.report.Indicator.agg_order_indicators",
+        "trade_indicator_authority": "qlib.backtest.report.Indicator.cal_trade_indicators",
+        "record_authority": "qlib.backtest.report.Indicator.record",
+        "order_indicator_state": "Indicator.order_indicator",
+        "trade_indicator_state": "Indicator.trade_indicator",
+        "history_state": ["Indicator.order_indicator_his", "Indicator.trade_indicator_his"],
+        "order_metric_fields": [
+            "amount",
+            "inner_amount",
+            "deal_amount",
+            "trade_price",
+            "trade_value",
+            "trade_cost",
+            "trade_dir",
+            "pa",
+            "ffr",
+            "base_price",
+            "base_volume",
+        ],
+        "trade_metric_fields": ["ffr", "pa", "pos", "deal_amount", "value", "count"],
+        "bar_end_rule": "account_update_indicator_runs_after_current_position_valuation_and_portfolio_metrics",
+        "atomic_rule": "atomic_executor_uses_trade_info_to_update_order_indicators",
+        "nested_rule": "non_atomic_executor_aggregates_inner_order_indicators_and_outer_decision",
+        "fulfill_rate_rule": "ffr_equals_deal_amount_reindexed_zero_for_missing_over_order_amount",
+        "price_advantage_rule": "pa_equals_directional_trade_price_over_base_price_minus_one",
+        "positive_rate_rule": "pos_equals_fraction_of_positive_pa",
+        "deal_amount_metric_rule": "deal_amount_metric_sums_absolute_deal_amount",
+        "trade_value_metric_rule": "value_metric_sums_absolute_trade_value",
+        "order_count_rule": "count_metric_counts_order_amount_entries",
+        "weighting_rule": "ffr_and_pa_support_mean_amount_weighted_value_weighted",
+        "base_price_rule": "base_price_uses_exchange_deal_price_with_twap_or_vwap_aggregation",
+        "unsupported_base_price_rule": "non_deal_price_base_price_is_not_supported",
+        "record_rule": "bar_end_records_order_indicator_and_trade_indicator_by_trade_start_time",
+        "portfolio_boundary_rule": "trade_indicators_are_execution_quality_metrics_not_portfolio_return_metrics",
+        "rdagent_rule": "describe_only_do_not_redefine_trade_execution_indicators_or_quality_metrics",
     }
     assert prompt_payload["suspension_tradability_semantics"] == {
         "semantic_name": "a_share_suspension_tradability",
@@ -769,6 +817,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "market_impact_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "account_update_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "account_valuation_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
+    assert "trade_indicator_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert (
         "suspension_tradability_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     )
@@ -1052,6 +1101,107 @@ def test_ashare_account_valuation_contract_matches_runtime_sources() -> None:
     assert "def get_close(" in exchange_source
 
 
+def test_ashare_trade_indicator_contract_matches_runtime_sources() -> None:
+    contract = ashare_semantics.rdagent_ashare_semantic_contract()
+    indicator = contract["prompt_projection_payload"]["trade_indicator_semantics"]
+    account_source = ACCOUNT_PATH.read_text()
+    report_source = REPORT_PATH.read_text()
+
+    assert indicator["semantic_name"] == "a_share_trade_execution_indicator"
+    assert indicator["account_indicator_authority"] == "qlib.backtest.account.Account.update_indicator"
+    assert indicator["indicator_authority"] == "qlib.backtest.report.Indicator"
+    assert indicator["atomic_order_update_authority"] == "qlib.backtest.report.Indicator.update_order_indicators"
+    assert indicator["nested_order_aggregation_authority"] == "qlib.backtest.report.Indicator.agg_order_indicators"
+    assert indicator["trade_indicator_authority"] == "qlib.backtest.report.Indicator.cal_trade_indicators"
+    assert indicator["record_authority"] == "qlib.backtest.report.Indicator.record"
+    assert indicator["order_indicator_state"] == "Indicator.order_indicator"
+    assert indicator["trade_indicator_state"] == "Indicator.trade_indicator"
+    assert indicator["history_state"] == ["Indicator.order_indicator_his", "Indicator.trade_indicator_his"]
+    assert indicator["order_metric_fields"] == [
+        "amount",
+        "inner_amount",
+        "deal_amount",
+        "trade_price",
+        "trade_value",
+        "trade_cost",
+        "trade_dir",
+        "pa",
+        "ffr",
+        "base_price",
+        "base_volume",
+    ]
+    assert indicator["trade_metric_fields"] == ["ffr", "pa", "pos", "deal_amount", "value", "count"]
+    assert (
+        indicator["bar_end_rule"]
+        == "account_update_indicator_runs_after_current_position_valuation_and_portfolio_metrics"
+    )
+    assert indicator["atomic_rule"] == "atomic_executor_uses_trade_info_to_update_order_indicators"
+    assert indicator["nested_rule"] == "non_atomic_executor_aggregates_inner_order_indicators_and_outer_decision"
+    assert indicator["fulfill_rate_rule"] == "ffr_equals_deal_amount_reindexed_zero_for_missing_over_order_amount"
+    assert indicator["price_advantage_rule"] == "pa_equals_directional_trade_price_over_base_price_minus_one"
+    assert indicator["positive_rate_rule"] == "pos_equals_fraction_of_positive_pa"
+    assert indicator["deal_amount_metric_rule"] == "deal_amount_metric_sums_absolute_deal_amount"
+    assert indicator["trade_value_metric_rule"] == "value_metric_sums_absolute_trade_value"
+    assert indicator["order_count_rule"] == "count_metric_counts_order_amount_entries"
+    assert indicator["weighting_rule"] == "ffr_and_pa_support_mean_amount_weighted_value_weighted"
+    assert indicator["base_price_rule"] == "base_price_uses_exchange_deal_price_with_twap_or_vwap_aggregation"
+    assert indicator["unsupported_base_price_rule"] == "non_deal_price_base_price_is_not_supported"
+    assert indicator["record_rule"] == "bar_end_records_order_indicator_and_trade_indicator_by_trade_start_time"
+    assert indicator["portfolio_boundary_rule"] == (
+        "trade_indicators_are_execution_quality_metrics_not_portfolio_return_metrics"
+    )
+    assert indicator["rdagent_rule"] == "describe_only_do_not_redefine_trade_execution_indicators_or_quality_metrics"
+    assert "def update_indicator(" in account_source
+    assert "self.indicator.reset()" in account_source
+    assert "self.indicator.update_order_indicators(trade_info)" in account_source
+    assert "self.indicator.agg_order_indicators(" in account_source
+    assert "self.indicator.cal_trade_indicators(trade_start_time, self.freq, indicator_config)" in account_source
+    assert "self.indicator.record(trade_start_time)" in account_source
+    assert "self.update_indicator(" in account_source
+    assert "class Indicator:" in report_source
+    assert "self.order_indicator_his: dict = OrderedDict()" in report_source
+    assert "self.trade_indicator_his: dict = OrderedDict()" in report_source
+    assert "self.trade_indicator: Dict[str, Optional[BaseSingleMetric]] = OrderedDict()" in report_source
+    assert 'self.order_indicator.assign("amount", amount)' in report_source
+    assert 'self.order_indicator.assign("inner_amount", amount)' in report_source
+    assert 'self.order_indicator.assign("deal_amount", deal_amount)' in report_source
+    assert 'self.order_indicator.assign("trade_price", trade_price)' in report_source
+    assert 'self.order_indicator.assign("trade_value", trade_value)' in report_source
+    assert 'self.order_indicator.assign("trade_cost", trade_cost)' in report_source
+    assert 'self.order_indicator.assign("trade_dir", trade_dir)' in report_source
+    assert 'self.order_indicator.assign("pa", pa)' in report_source
+    assert "return tmp_deal_amount / amount" in report_source
+    assert 'self.order_indicator.transfer(func, "ffr")' in report_source
+    assert "self._agg_order_trade_info(inner_order_indicators)" in report_source
+    assert "self._agg_base_price(inner_order_indicators, decision_list, trade_exchange, pa_config=pa_config)" in (
+        report_source
+    )
+    assert "self._agg_order_price_advantage()" in report_source
+    assert "price_s = trade_exchange.get_deal_price(" in report_source
+    assert 'if agg == "vwap":' in report_source
+    assert 'elif agg == "twap":' in report_source
+    assert 'raise NotImplementedError(f"This type of input is not supported")' in report_source
+    assert "return sign * (trade_price / base_price - 1)" in report_source
+    assert "lambda ffr: ffr.mean()" in report_source
+    assert "lambda ffr, deal_amount: (ffr * deal_amount.abs()).sum() / (deal_amount.abs().sum())" in report_source
+    assert "lambda ffr, trade_value: (ffr * trade_value.abs()).sum() / (trade_value.abs().sum())" in report_source
+    assert "lambda pa: pa.mean()" in report_source
+    assert "lambda pa, deal_amount: (pa * deal_amount.abs()).sum() / (deal_amount.abs().sum())" in report_source
+    assert "lambda pa, trade_value: (pa * trade_value.abs()).sum() / (trade_value.abs().sum())" in report_source
+    assert "return (pa > 0).sum() / pa.count()" in report_source
+    assert "return deal_amount.abs().sum()" in report_source
+    assert "return trade_value.abs().sum()" in report_source
+    assert "return amount.count()" in report_source
+    assert 'self.trade_indicator["ffr"] = fulfill_rate' in report_source
+    assert 'self.trade_indicator["pa"] = price_advantage' in report_source
+    assert 'self.trade_indicator["pos"] = positive_rate' in report_source
+    assert 'self.trade_indicator["deal_amount"] = deal_amount' in report_source
+    assert 'self.trade_indicator["value"] = trade_value' in report_source
+    assert 'self.trade_indicator["count"] = order_count' in report_source
+    assert "self.order_indicator_his[trade_start_time] = self.get_order_indicator()" in report_source
+    assert "self.trade_indicator_his[trade_start_time] = self.get_trade_indicator()" in report_source
+
+
 def test_ashare_cash_settlement_contract_matches_position_source() -> None:
     contract = ashare_semantics.rdagent_ashare_semantic_contract()
     cash_settlement = contract["prompt_projection_payload"]["cash_settlement_semantics"]
@@ -1202,6 +1352,18 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
         round_tripped["prompt_projection_payload"]["account_valuation_semantics"]["value_authority"]
         == "qlib.backtest.position.Position.calculate_value"
     )
+    assert (
+        round_tripped["prompt_projection_payload"]["trade_indicator_semantics"]["rdagent_rule"]
+        == "describe_only_do_not_redefine_trade_execution_indicators_or_quality_metrics"
+    )
+    assert round_tripped["prompt_projection_payload"]["trade_indicator_semantics"]["trade_metric_fields"] == [
+        "ffr",
+        "pa",
+        "pos",
+        "deal_amount",
+        "value",
+        "count",
+    ]
     assert (
         round_tripped["prompt_projection_payload"]["suspension_tradability_semantics"]["rdagent_rule"]
         == "describe_only_do_not_redefine_suspension_or_tradability"

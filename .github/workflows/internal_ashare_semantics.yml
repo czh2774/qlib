@@ -8,6 +8,7 @@ on:
       - "qlib/backtest/account.py"
       - "qlib/backtest/exchange.py"
       - "qlib/backtest/position.py"
+      - "qlib/backtest/report.py"
       - "qlib/data/data.py"
       - "tests/backtest/test_ashare_semantics.py"
       - "tests/backtest/test_ashare_t1_position.py"
@@ -19,6 +20,7 @@ on:
       - "qlib/backtest/account.py"
       - "qlib/backtest/exchange.py"
       - "qlib/backtest/position.py"
+      - "qlib/backtest/report.py"
       - "qlib/data/data.py"
       - "tests/backtest/test_ashare_semantics.py"
       - "tests/backtest/test_ashare_t1_position.py"
@@ -83,6 +85,7 @@ jobs:
             qlib/backtest/account.py \
             qlib/backtest/exchange.py \
             qlib/backtest/position.py \
+            qlib/backtest/report.py \
             qlib/data/data.py \
             tests/backtest/test_ashare_semantics.py \
             tests/backtest/test_ashare_t1_position.py
