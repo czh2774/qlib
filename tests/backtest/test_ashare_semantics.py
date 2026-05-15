@@ -346,6 +346,10 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     assert "redefine_suspension_or_tradability_rules" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert "redefine_execution_price_or_frequency" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert "redefine_price_adjustment_or_order_factor" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
+    assert (
+        "treat_board_fallback_as_primary_price_limit_authority"
+        in contract["semantic_boundary"]["rdagent_forbidden_actions"]
+    )
     assert "redefine_cost_model_or_exchange_kwargs" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert set(contract["failure_semantics"].values()) == {"fail_closed"}
     assert "instrument_identity_semantics" in contract["rdagent_must_not_redefine"]
@@ -353,6 +357,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     assert "suspension_tradability_semantics" in contract["rdagent_must_not_redefine"]
     assert "execution_price_semantics" in contract["rdagent_must_not_redefine"]
     assert "price_adjustment_semantics" in contract["rdagent_must_not_redefine"]
+    assert "price_limit_semantics" in contract["rdagent_must_not_redefine"]
     assert "cost_model" in contract["rdagent_must_not_redefine"]
     assert contract["market_semantics"]["region"] == "cn"
     assert contract["market_semantics"]["trade_unit"] == 100
@@ -480,18 +485,26 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "rdagent_rule": "describe_only_do_not_redefine_price_adjustment_or_order_factor",
     }
     assert prompt_payload["price_limit_semantics"] == {
+        "semantic_name": "a_share_price_limit_authority",
         "limit_threshold": "joinquant_ashare",
         "price_limit_mode": "strict",
         "authoritative_limit_fields": ["$up_limit", "$down_limit"],
         "field_authority": "provider_up_down_limit_fields",
+        "limit_flag_fields": ["limit_buy", "limit_sell"],
+        "limit_flag_meaning": "true_flags_mark_direction_not_tradable",
+        "buy_limit_rule": "buy_price_at_or_above_up_limit_or_suspended_sets_limit_buy",
+        "sell_limit_rule": "sell_price_at_or_below_down_limit_or_suspended_sets_limit_sell",
         "missing_authoritative_fields": "fail_closed_in_strict_mode_else_qlib_board_fallback_for_legacy_datasets",
+        "strict_mode_missing_fields_rule": "missing_authoritative_fields_or_non_suspended_bounds_fail_closed",
         "board_fallback_policy": "runtime_compatibility_only_when_authoritative_fields_are_absent",
+        "fallback_authority_rule": "board_thresholds_are_runtime_compatibility_fallback_only_not_primary_authority",
         "board_limit_thresholds": {
             "main_board": 0.095,
             "star_chinext": 0.195,
             "bse": 0.295,
             "chinext_registration_start_date": "2020-08-24",
         },
+        "runtime_authority": "qlib.backtest.ashare_semantics.JoinQuantAshareBacktestPolicy.apply_price_limits",
         "rdagent_rule": "describe_only_do_not_redefine_price_limit_thresholds_or_fields",
     }
     assert relaxed_contract["prompt_projection_payload"]["price_limit_semantics"]["price_limit_mode"] == "auto"
@@ -581,6 +594,10 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
         == "describe_only_do_not_redefine_price_adjustment_or_order_factor"
     )
     assert round_tripped["prompt_projection_payload"]["price_limit_semantics"]["price_limit_mode"] == "auto"
+    assert (
+        round_tripped["prompt_projection_payload"]["price_limit_semantics"]["fallback_authority_rule"]
+        == "board_thresholds_are_runtime_compatibility_fallback_only_not_primary_authority"
+    )
     assert round_tripped["prompt_projection_payload"]["settlement_semantics"]["settlement_rule"] == "t_plus_1_stock"
     assert round_tripped["prompt_projection_payload"]["order_unit_semantics"]["trade_unit"] == 100
     assert (
