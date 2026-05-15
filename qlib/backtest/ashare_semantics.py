@@ -843,6 +843,9 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "first_round_decision_rule": (
             "first_round_without_sota_must_not_treat_positive_icir_or_not_too_negative_performance_as_success_proxy"
         ),
+        "bandit_metric_extraction_rule": "required_bandit_metrics_must_be_present_numeric_and_finite",
+        "bandit_metric_missing_failure": "missing_bandit_metric_path_fails_closed_without_zero_default",
+        "bandit_metric_invalid_failure": "non_numeric_or_non_finite_bandit_metric_fails_closed_without_zero_default",
         "derived_bandit_utility_name": "drawdown_adjusted_return",
         "derived_bandit_utility_rule": "rdagent_may_compute_arr_over_abs_max_drawdown_as_derived_utility_not_qlib_metric",
         "forbidden_metric_aliases": ["sharpe", "Sharpe"],

@@ -1080,6 +1080,9 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "first_round_decision_rule": (
             "first_round_without_sota_must_not_treat_positive_icir_or_not_too_negative_performance_as_success_proxy"
         ),
+        "bandit_metric_extraction_rule": "required_bandit_metrics_must_be_present_numeric_and_finite",
+        "bandit_metric_missing_failure": "missing_bandit_metric_path_fails_closed_without_zero_default",
+        "bandit_metric_invalid_failure": "non_numeric_or_non_finite_bandit_metric_fails_closed_without_zero_default",
         "derived_bandit_utility_name": "drawdown_adjusted_return",
         "derived_bandit_utility_rule": "rdagent_may_compute_arr_over_abs_max_drawdown_as_derived_utility_not_qlib_metric",
         "forbidden_metric_aliases": ["sharpe", "Sharpe"],
@@ -2658,6 +2661,13 @@ def test_ashare_feedback_metric_contract_matches_runtime_sources() -> None:
         feedback_metric["first_round_decision_rule"]
         == "first_round_without_sota_must_not_treat_positive_icir_or_not_too_negative_performance_as_success_proxy"
     )
+    assert feedback_metric["bandit_metric_extraction_rule"] == "required_bandit_metrics_must_be_present_numeric_and_finite"
+    assert feedback_metric["bandit_metric_missing_failure"] == (
+        "missing_bandit_metric_path_fails_closed_without_zero_default"
+    )
+    assert feedback_metric["bandit_metric_invalid_failure"] == (
+        "non_numeric_or_non_finite_bandit_metric_fails_closed_without_zero_default"
+    )
     assert feedback_metric["derived_bandit_utility_name"] == "drawdown_adjusted_return"
     assert (
         feedback_metric["derived_bandit_utility_rule"]
@@ -3222,6 +3232,15 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
         "ICIR is greater than 0",
         "Do not set the threshold too high",
     ]
+    assert round_tripped["prompt_projection_payload"]["feedback_metric_semantics"][
+        "bandit_metric_extraction_rule"
+    ] == "required_bandit_metrics_must_be_present_numeric_and_finite"
+    assert round_tripped["prompt_projection_payload"]["feedback_metric_semantics"][
+        "bandit_metric_missing_failure"
+    ] == "missing_bandit_metric_path_fails_closed_without_zero_default"
+    assert round_tripped["prompt_projection_payload"]["feedback_metric_semantics"][
+        "bandit_metric_invalid_failure"
+    ] == "non_numeric_or_non_finite_bandit_metric_fails_closed_without_zero_default"
     assert round_tripped["prompt_projection_payload"]["benchmark_return_semantics"]["default_benchmark"] == "SH000300"
     assert (
         round_tripped["prompt_projection_payload"]["benchmark_return_semantics"]["rdagent_rule"]
