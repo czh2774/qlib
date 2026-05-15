@@ -250,6 +250,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "price_adjustment_semantics",
         "price_limit_semantics",
         "settlement_semantics",
+        "cash_constraint_semantics",
         "trade_unit",
         "position_type",
         "settlement_rule",
@@ -289,6 +290,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "redefine_price_limit_thresholds_or_authoritative_fields",
             "treat_board_fallback_as_primary_price_limit_authority",
             "redefine_settlement_or_sellable_position_state",
+            "redefine_cash_buying_power_or_shorting_policy",
             "redefine_cost_model_or_exchange_kwargs",
             "treat_research_prompt_projection_as_backtest_authority",
             "claim_a_share_alignment_without_qlib_contract_fingerprint",
@@ -443,6 +445,21 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "exchange_clip_authority": "qlib.backtest.exchange.Exchange._calc_trade_info_by_order",
             "rdagent_rule": "describe_only_do_not_redefine_position_or_settlement",
         },
+        "cash_constraint_semantics": {
+            "semantic_name": "a_share_cash_buying_power_and_shorting_policy",
+            "cash_state_field": "cash",
+            "cash_query_rule": "buying_power_uses_position_get_cash_without_unsettled_cash",
+            "buy_cash_rule": "buy_orders_are_clipped_by_available_cash_and_transaction_cost",
+            "minimum_cost_rule": "orders_without_cash_for_minimum_cost_are_zeroed",
+            "partial_buy_rule": "cash_insufficient_orders_are_reduced_by_exchange_cash_limit_then_round_lot",
+            "shorting_policy": "equity_short_selling_is_not_enabled",
+            "sell_position_rule": "sell_orders_are_clipped_by_position_get_sellable_amount",
+            "sell_cash_rule": "sell_orders_zero_when_cash_plus_trade_value_cannot_cover_sell_cost",
+            "runtime_authority": "qlib.backtest.exchange.Exchange._calc_trade_info_by_order",
+            "cash_limit_authority": "qlib.backtest.exchange.Exchange._get_buy_amount_by_cash_limit",
+            "position_cash_authority": "qlib.backtest.position.Position.get_cash",
+            "rdagent_rule": "describe_only_do_not_redefine_cash_or_shorting_policy",
+        },
         "order_unit_semantics": {
             "semantic_name": "a_share_round_lot",
             "qlib_parameter": "trade_unit",
@@ -468,7 +485,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "relationship_rule": (
                 "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
                 "but it must not redefine trade unit, position, execution-price, price-adjustment, "
-                "suspension/tradability, price-limit, settlement, or cost semantics."
+                "suspension/tradability, price-limit, settlement, cash/shorting, or cost semantics."
             ),
             "fail_closed_on_missing_contract": True,
         },
@@ -514,6 +531,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
                 "price_adjustment_semantics",
                 "price_limit_semantics",
                 "settlement_semantics",
+                "cash_constraint_semantics",
                 "order_unit_semantics",
             ],
             "rdagent_prompt_forbidden_fields": [
