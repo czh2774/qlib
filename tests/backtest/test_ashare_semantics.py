@@ -510,7 +510,10 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
                 "board": "chinext_registration_sensitive",
                 "effective_start": "2020-08-24",
             },
-            {"match": "BJ*|SH8*|SH4*|SH9*|SZ8*|SZ4*|SZ9*", "board": "beijing_stock_exchange"},
+            {
+                "match": "BJ*|SH8*|SH4*|SH9*|SZ8*|SZ4*|SZ9*",
+                "board": "beijing_stock_exchange",
+            },
             {"match": "fallback", "board": "main_board"},
         ],
         "price_limit_dependency": "board_identity_is_runtime_fallback_only_when_authoritative_limit_fields_absent",
@@ -636,7 +639,10 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "record_authority": "qlib.backtest.report.Indicator.record",
         "order_indicator_state": "Indicator.order_indicator",
         "trade_indicator_state": "Indicator.trade_indicator",
-        "history_state": ["Indicator.order_indicator_his", "Indicator.trade_indicator_his"],
+        "history_state": [
+            "Indicator.order_indicator_his",
+            "Indicator.trade_indicator_his",
+        ],
         "order_metric_fields": [
             "amount",
             "inner_amount",
@@ -781,7 +787,13 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "report_type_fields": ["excess_return_without_cost", "excess_return_with_cost"],
         "excess_without_cost_rule": "report_return_minus_benchmark",
         "excess_with_cost_rule": "report_return_minus_benchmark_minus_cost",
-        "risk_metric_fields": ["mean", "std", "annualized_return", "information_ratio", "max_drawdown"],
+        "risk_metric_fields": [
+            "mean",
+            "std",
+            "annualized_return",
+            "information_ratio",
+            "max_drawdown",
+        ],
         "default_accumulation_mode": "sum",
         "supported_accumulation_modes": ["sum", "product"],
         "sum_mode_rule": "qlib_sum_mode_uses_arithmetic_cumulative_return_not_geometric_compounding",
@@ -1054,7 +1066,10 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "settlement_rule" in strict_contract["rdagent_must_not_redefine"]
     assert "same_day_sell_policy" in strict_contract["rdagent_must_not_redefine"]
     assert "data_frequency" in strict_contract["rdagent_must_not_redefine"]
-    assert not _contains_key(prompt_payload, {"runtime_surfaces", "cost_model", "exchange_kwargs", "backtest_kwargs"})
+    assert not _contains_key(
+        prompt_payload,
+        {"runtime_surfaces", "cost_model", "exchange_kwargs", "backtest_kwargs"},
+    )
     assert "open_cost" not in json.dumps(prompt_payload, sort_keys=True)
     assert "close_tax" not in json.dumps(prompt_payload, sort_keys=True)
 
@@ -1336,7 +1351,10 @@ def test_ashare_trade_indicator_contract_matches_runtime_sources() -> None:
     assert indicator["record_authority"] == "qlib.backtest.report.Indicator.record"
     assert indicator["order_indicator_state"] == "Indicator.order_indicator"
     assert indicator["trade_indicator_state"] == "Indicator.trade_indicator"
-    assert indicator["history_state"] == ["Indicator.order_indicator_his", "Indicator.trade_indicator_his"]
+    assert indicator["history_state"] == [
+        "Indicator.order_indicator_his",
+        "Indicator.trade_indicator_his",
+    ]
     assert indicator["order_metric_fields"] == [
         "amount",
         "inner_amount",
@@ -1350,7 +1368,14 @@ def test_ashare_trade_indicator_contract_matches_runtime_sources() -> None:
         "base_price",
         "base_volume",
     ]
-    assert indicator["trade_metric_fields"] == ["ffr", "pa", "pos", "deal_amount", "value", "count"]
+    assert indicator["trade_metric_fields"] == [
+        "ffr",
+        "pa",
+        "pos",
+        "deal_amount",
+        "value",
+        "count",
+    ]
     assert (
         indicator["bar_end_rule"]
         == "account_update_indicator_runs_after_current_position_valuation_and_portfolio_metrics"
@@ -1676,7 +1701,12 @@ def test_ashare_signal_ic_contract_matches_runtime_sources() -> None:
     assert signal_ic["icir_rule"] == "ICIR_is_IC_mean_divided_by_IC_sample_std"
     assert signal_ic["rank_icir_rule"] == "Rank_ICIR_is_Rank_IC_mean_divided_by_Rank_IC_sample_std"
     assert signal_ic["recorder_metric_rule"] == "SigAnaRecord_and_HFSignalRecord_log_metrics_with_exact_metric_names"
-    assert signal_ic["rdagent_consumed_metric_paths"] == ["IC", "ICIR", "Rank IC", "Rank ICIR"]
+    assert signal_ic["rdagent_consumed_metric_paths"] == [
+        "IC",
+        "ICIR",
+        "Rank IC",
+        "Rank ICIR",
+    ]
     assert (
         signal_ic["portfolio_boundary_rule"]
         == "signal_ic_metrics_are_prediction_label_quality_metrics_not_portfolio_return_metrics"
@@ -1747,8 +1777,16 @@ def test_ashare_portfolio_risk_contract_matches_runtime_sources() -> None:
         portfolio_risk["default_frequency_rule"]
         == "missing_risk_analysis_freq_uses_first_executor_portfolio_metric_frequency"
     )
-    assert portfolio_risk["required_report_columns"] == ["return", "bench", "cost", "turnover"]
-    assert portfolio_risk["report_type_fields"] == ["excess_return_without_cost", "excess_return_with_cost"]
+    assert portfolio_risk["required_report_columns"] == [
+        "return",
+        "bench",
+        "cost",
+        "turnover",
+    ]
+    assert portfolio_risk["report_type_fields"] == [
+        "excess_return_without_cost",
+        "excess_return_with_cost",
+    ]
     assert portfolio_risk["excess_without_cost_rule"] == "report_return_minus_benchmark"
     assert portfolio_risk["excess_with_cost_rule"] == "report_return_minus_benchmark_minus_cost"
     assert portfolio_risk["risk_metric_fields"] == [
@@ -1865,7 +1903,13 @@ def test_ashare_benchmark_return_contract_matches_runtime_sources() -> None:
     assert benchmark_return["benchmark_sampling_authority"] == "qlib.backtest.report.PortfolioMetrics._sample_benchmark"
     assert benchmark_return["feature_query_authority"] == "qlib.utils.resam.get_higher_eq_freq_feature"
     assert benchmark_return["resample_authority"] == "qlib.utils.resam.resam_ts_data"
-    assert benchmark_return["accepted_benchmark_inputs"] == ["str", "list", "dict", "pd.Series", "None"]
+    assert benchmark_return["accepted_benchmark_inputs"] == [
+        "str",
+        "list",
+        "dict",
+        "pd.Series",
+        "None",
+    ]
     assert benchmark_return["default_rule"] == "missing_benchmark_key_uses_CSI300_BENCH_SH000300"
     assert benchmark_return["none_rule"] == "benchmark_config_none_or_benchmark_none_disables_benchmark_series"
     assert benchmark_return["series_rule"] == "pd_series_benchmark_is_used_directly_as_per_period_return_series"
