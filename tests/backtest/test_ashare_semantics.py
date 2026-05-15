@@ -12,6 +12,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MODULE_PATH = REPO_ROOT / "qlib/backtest/ashare_semantics.py"
 EXCHANGE_PATH = REPO_ROOT / "qlib/backtest/exchange.py"
+DATA_PATH = REPO_ROOT / "qlib/data/data.py"
 
 spec = importlib.util.spec_from_file_location("ashare_semantics_under_test", MODULE_PATH)
 assert spec is not None and spec.loader is not None
@@ -333,7 +334,8 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
         "rdagent_role": "research_candidate_generation_context_consumer",
         "relationship_rule": (
             "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
-            "but it must not redefine trade unit, position, execution-price, price-adjustment, "
+            "but it must not redefine trading-calendar/data-frequency, trade unit, position, execution-price, "
+            "price-adjustment, "
             "suspension/tradability, price-limit, settlement, cash/shorting, liquidity/capacity, or cost semantics."
         ),
         "fail_closed_on_missing_contract": True,
@@ -342,6 +344,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     assert contract["semantic_boundary"]["consumer_component"] == "rdagent.scenarios.qlib.ashare_semantics"
     assert "render_contract_projection_in_research_context" in contract["semantic_boundary"]["rdagent_allowed_actions"]
     assert "redefine_instrument_identity_or_board_mapping" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
+    assert "redefine_trading_calendar_or_data_frequency" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert "redefine_transaction_cost_model" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert "redefine_suspension_or_tradability_rules" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert "redefine_execution_price_or_frequency" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
@@ -358,6 +361,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     assert "redefine_cost_model_or_exchange_kwargs" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert set(contract["failure_semantics"].values()) == {"fail_closed"}
     assert "instrument_identity_semantics" in contract["rdagent_must_not_redefine"]
+    assert "trading_calendar_semantics" in contract["rdagent_must_not_redefine"]
     assert "transaction_cost_semantics" in contract["rdagent_must_not_redefine"]
     assert "suspension_tradability_semantics" in contract["rdagent_must_not_redefine"]
     assert "execution_price_semantics" in contract["rdagent_must_not_redefine"]
@@ -368,6 +372,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     assert "liquidity_capacity_semantics" in contract["rdagent_must_not_redefine"]
     assert "cost_model" in contract["rdagent_must_not_redefine"]
     assert contract["market_semantics"]["region"] == "cn"
+    assert contract["market_semantics"]["data_frequency"] == "day"
     assert contract["market_semantics"]["trade_unit"] == 100
     assert contract["market_semantics"]["position_type"] == "AsharePosition"
     assert contract["market_semantics"]["settlement_rule"] == "t_plus_1_stock"
@@ -405,6 +410,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert prompt_payload["market_semantics"] == {
         "market": "china_a_share",
         "region": "cn",
+        "data_frequency": "day",
         "trade_unit": 100,
         "position_type": "AsharePosition",
         "settlement_rule": "t_plus_1_stock",
@@ -444,6 +450,20 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
             "qlib.backtest.ashare_semantics.JoinQuantAshareBacktestPolicy.limit_threshold_for_instrument"
         ),
         "rdagent_rule": "describe_only_do_not_redefine_instrument_or_board_identity",
+    }
+    assert prompt_payload["trading_calendar_semantics"] == {
+        "semantic_name": "a_share_daily_trading_calendar",
+        "calendar_frequency": "day",
+        "calendar_provider_authority": "qlib.data.data.CalendarProvider.calendar",
+        "calendar_locator_authority": "qlib.data.data.CalendarProvider.locate_index",
+        "exchange_frequency_parameter": "freq",
+        "exchange_default_frequency": "day",
+        "index_level": "datetime",
+        "instrument_window_rule": "instrument_membership_is_filtered_against_calendar_boundaries",
+        "non_trading_day_rule": "calendar_locate_index_maps_start_forward_and_end_backward_to_real_trading_days",
+        "future_calendar_rule": "future_trading_days_require_qlib_future_calendar_support_not_prompt_invention",
+        "synthetic_session_rule": "rdagent_must_not_invent_non_qlib_calendar_sessions",
+        "rdagent_rule": "describe_only_do_not_redefine_trading_calendar_or_data_frequency",
     }
     assert prompt_payload["transaction_cost_semantics"] == {
         "semantic_name": "a_share_transaction_cost_structure",
@@ -575,6 +595,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "rdagent_rule": "describe_only_do_not_redefine_trade_unit_or_round_lot_policy",
     }
     assert "instrument_identity_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
+    assert "trading_calendar_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "transaction_cost_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert (
         "suspension_tradability_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
@@ -588,6 +609,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "order_unit_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "settlement_rule" in strict_contract["rdagent_must_not_redefine"]
     assert "same_day_sell_policy" in strict_contract["rdagent_must_not_redefine"]
+    assert "data_frequency" in strict_contract["rdagent_must_not_redefine"]
     assert not _contains_key(prompt_payload, {"runtime_surfaces", "cost_model", "exchange_kwargs", "backtest_kwargs"})
     assert "open_cost" not in json.dumps(prompt_payload, sort_keys=True)
     assert "close_tax" not in json.dumps(prompt_payload, sort_keys=True)
@@ -642,6 +664,26 @@ def test_ashare_liquidity_capacity_contract_matches_exchange_source() -> None:
     assert "self.volume_threshold = volume_threshold" in exchange_source
 
 
+def test_ashare_trading_calendar_contract_matches_qlib_calendar_source() -> None:
+    contract = ashare_semantics.rdagent_ashare_semantic_contract()
+    calendar_semantics = contract["prompt_projection_payload"]["trading_calendar_semantics"]
+    data_source = DATA_PATH.read_text()
+    exchange_source = EXCHANGE_PATH.read_text()
+
+    assert calendar_semantics["calendar_frequency"] == "day"
+    assert calendar_semantics["calendar_provider_authority"] == "qlib.data.data.CalendarProvider.calendar"
+    assert calendar_semantics["calendar_locator_authority"] == "qlib.data.data.CalendarProvider.locate_index"
+    assert calendar_semantics["exchange_frequency_parameter"] == "freq"
+    assert calendar_semantics["exchange_default_frequency"] == "day"
+    assert 'def calendar(self, start_time=None, end_time=None, freq="day", future=False)' in data_source
+    assert "def locate_index(" in data_source
+    assert "calendar[bisect.bisect_left(calendar, start_time)]" in data_source
+    assert "calendar[bisect.bisect_right(calendar, end_time) - 1]" in data_source
+    assert "cal = Cal.calendar(freq=freq)" in data_source
+    assert 'freq: str = "day"' in exchange_source
+    assert "self.freq = freq" in exchange_source
+
+
 def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
     contract = ashare_semantics.rdagent_ashare_semantic_contract(
         strict_price_limit=False,
@@ -656,6 +698,10 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
     assert (
         round_tripped["prompt_projection_payload"]["instrument_identity_semantics"]["rdagent_rule"]
         == "describe_only_do_not_redefine_instrument_or_board_identity"
+    )
+    assert (
+        round_tripped["prompt_projection_payload"]["trading_calendar_semantics"]["rdagent_rule"]
+        == "describe_only_do_not_redefine_trading_calendar_or_data_frequency"
     )
     assert (
         round_tripped["prompt_projection_payload"]["transaction_cost_semantics"]["numeric_values_exposure"]
