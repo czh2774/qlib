@@ -11,6 +11,7 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MODULE_PATH = REPO_ROOT / "qlib/backtest/ashare_semantics.py"
+BACKTEST_INIT_PATH = REPO_ROOT / "qlib/backtest/__init__.py"
 ACCOUNT_PATH = REPO_ROOT / "qlib/backtest/account.py"
 DECISION_PATH = REPO_ROOT / "qlib/backtest/decision.py"
 EXCHANGE_PATH = REPO_ROOT / "qlib/backtest/exchange.py"
@@ -347,7 +348,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
             "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
             "but it must not redefine universe-membership, trading-calendar/data-frequency, trade unit, position, execution-price, "
             "price-adjustment, "
-            "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, executor/trade-decision lifecycle, strategy signal-to-order generation, portfolio risk analysis, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
+            "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, executor/trade-decision lifecycle, strategy signal-to-order generation, portfolio risk analysis, benchmark return, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
         ),
         "fail_closed_on_missing_contract": True,
     }
@@ -386,6 +387,10 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     assert "redefine_strategy_signal_to_order_generation" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert "redefine_portfolio_risk_analysis_metrics" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert (
+        "redefine_benchmark_return_series_or_default_benchmark"
+        in contract["semantic_boundary"]["rdagent_forbidden_actions"]
+    )
+    assert (
         "redefine_settlement_or_sellable_position_state" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     )
     assert (
@@ -407,6 +412,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     assert "executor_decision_semantics" in contract["rdagent_must_not_redefine"]
     assert "strategy_order_semantics" in contract["rdagent_must_not_redefine"]
     assert "portfolio_risk_semantics" in contract["rdagent_must_not_redefine"]
+    assert "benchmark_return_semantics" in contract["rdagent_must_not_redefine"]
     assert "suspension_tradability_semantics" in contract["rdagent_must_not_redefine"]
     assert "execution_price_semantics" in contract["rdagent_must_not_redefine"]
     assert "price_adjustment_semantics" in contract["rdagent_must_not_redefine"]
@@ -455,6 +461,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "executor_decision_semantics" in evidence["fingerprint_scope"]
     assert "strategy_order_semantics" in evidence["fingerprint_scope"]
     assert "portfolio_risk_semantics" in evidence["fingerprint_scope"]
+    assert "benchmark_return_semantics" in evidence["fingerprint_scope"]
     assert "qlib_contract_fingerprint" in evidence["rdagent_required_evidence_fields"]
     assert (
         "runtime_surfaces.backtest_kwargs" in strict_contract["projection_contract"]["rdagent_prompt_forbidden_fields"]
@@ -761,6 +768,34 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         ],
         "rdagent_rule": "describe_only_do_not_redefine_portfolio_risk_analysis_metrics",
     }
+    assert prompt_payload["benchmark_return_semantics"] == {
+        "semantic_name": "a_share_benchmark_return_series",
+        "default_benchmark": "SH000300",
+        "benchmark_constant_authority": "qlib.tests.config.CSI300_BENCH",
+        "backtest_entry_authority": "qlib.backtest.backtest",
+        "account_config_authority": "qlib.backtest.create_account_instance",
+        "portfolio_metric_authority": "qlib.backtest.report.PortfolioMetrics",
+        "benchmark_calculation_authority": "qlib.backtest.report.PortfolioMetrics._cal_benchmark",
+        "benchmark_sampling_authority": "qlib.backtest.report.PortfolioMetrics._sample_benchmark",
+        "feature_query_authority": "qlib.utils.resam.get_higher_eq_freq_feature",
+        "resample_authority": "qlib.utils.resam.resam_ts_data",
+        "accepted_benchmark_inputs": ["str", "list", "dict", "pd.Series", "None"],
+        "default_rule": "missing_benchmark_key_uses_CSI300_BENCH_SH000300",
+        "none_rule": "benchmark_config_none_or_benchmark_none_disables_benchmark_series",
+        "series_rule": "pd_series_benchmark_is_used_directly_as_per_period_return_series",
+        "code_rule": "str_benchmark_is_queried_as_single_code_close_over_ref_close_minus_one",
+        "basket_rule": "list_or_dict_benchmark_is_queried_as_codes_and_averaged_by_datetime",
+        "benchmark_field_expression": "$close/Ref($close,1)-1",
+        "missing_frequency_rule": "non_series_benchmark_requires_freq_else_ValueError",
+        "missing_benchmark_rule": "empty_feature_result_raises_ValueError",
+        "fillna_rule": "queried_benchmark_returns_fillna_zero_after_datetime_average",
+        "sample_rule": "bar_benchmark_return_equals_product_of_one_plus_period_returns_minus_one",
+        "direct_bench_value_rule": "provided_bench_value_overrides_sampling",
+        "unusable_benchmark_rule": "trade_end_time_and_bench_value_both_none_raise_ValueError",
+        "report_column": "bench",
+        "portfolio_risk_dependency": "portfolio_risk_excess_returns_use_report_normal_bench_column",
+        "rdagent_rule": "describe_only_do_not_redefine_benchmark_return_series_or_default_benchmark",
+    }
     assert prompt_payload["suspension_tradability_semantics"] == {
         "semantic_name": "a_share_suspension_tradability",
         "suspension_indicator_field": "$close",
@@ -946,6 +981,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "executor_decision_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "strategy_order_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "portfolio_risk_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
+    assert "benchmark_return_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert (
         "suspension_tradability_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     )
@@ -1649,6 +1685,74 @@ def test_ashare_portfolio_risk_contract_matches_runtime_sources() -> None:
     assert 'res = pd.Series(data).to_frame("risk")' in evaluate_source
 
 
+def test_ashare_benchmark_return_contract_matches_runtime_sources() -> None:
+    contract = ashare_semantics.rdagent_ashare_semantic_contract()
+    benchmark_return = contract["prompt_projection_payload"]["benchmark_return_semantics"]
+    backtest_source = BACKTEST_INIT_PATH.read_text()
+    report_source = REPORT_PATH.read_text()
+
+    assert benchmark_return["semantic_name"] == "a_share_benchmark_return_series"
+    assert benchmark_return["default_benchmark"] == "SH000300"
+    assert benchmark_return["benchmark_constant_authority"] == "qlib.tests.config.CSI300_BENCH"
+    assert benchmark_return["backtest_entry_authority"] == "qlib.backtest.backtest"
+    assert benchmark_return["account_config_authority"] == "qlib.backtest.create_account_instance"
+    assert benchmark_return["portfolio_metric_authority"] == "qlib.backtest.report.PortfolioMetrics"
+    assert benchmark_return["benchmark_calculation_authority"] == "qlib.backtest.report.PortfolioMetrics._cal_benchmark"
+    assert benchmark_return["benchmark_sampling_authority"] == "qlib.backtest.report.PortfolioMetrics._sample_benchmark"
+    assert benchmark_return["feature_query_authority"] == "qlib.utils.resam.get_higher_eq_freq_feature"
+    assert benchmark_return["resample_authority"] == "qlib.utils.resam.resam_ts_data"
+    assert benchmark_return["accepted_benchmark_inputs"] == ["str", "list", "dict", "pd.Series", "None"]
+    assert benchmark_return["default_rule"] == "missing_benchmark_key_uses_CSI300_BENCH_SH000300"
+    assert benchmark_return["none_rule"] == "benchmark_config_none_or_benchmark_none_disables_benchmark_series"
+    assert benchmark_return["series_rule"] == "pd_series_benchmark_is_used_directly_as_per_period_return_series"
+    assert benchmark_return["code_rule"] == "str_benchmark_is_queried_as_single_code_close_over_ref_close_minus_one"
+    assert benchmark_return["basket_rule"] == "list_or_dict_benchmark_is_queried_as_codes_and_averaged_by_datetime"
+    assert benchmark_return["benchmark_field_expression"] == "$close/Ref($close,1)-1"
+    assert benchmark_return["missing_frequency_rule"] == "non_series_benchmark_requires_freq_else_ValueError"
+    assert benchmark_return["missing_benchmark_rule"] == "empty_feature_result_raises_ValueError"
+    assert benchmark_return["fillna_rule"] == "queried_benchmark_returns_fillna_zero_after_datetime_average"
+    assert benchmark_return["sample_rule"] == "bar_benchmark_return_equals_product_of_one_plus_period_returns_minus_one"
+    assert benchmark_return["direct_bench_value_rule"] == "provided_bench_value_overrides_sampling"
+    assert benchmark_return["unusable_benchmark_rule"] == "trade_end_time_and_bench_value_both_none_raise_ValueError"
+    assert benchmark_return["report_column"] == "bench"
+    assert (
+        benchmark_return["portfolio_risk_dependency"] == "portfolio_risk_excess_returns_use_report_normal_bench_column"
+    )
+    assert (
+        benchmark_return["rdagent_rule"] == "describe_only_do_not_redefine_benchmark_return_series_or_default_benchmark"
+    )
+
+    assert 'benchmark: Optional[str] = "SH000300"' in backtest_source
+    assert 'benchmark: str = "SH000300"' in backtest_source
+    assert '"benchmark": benchmark' in backtest_source
+    assert '"start_time": start_time' in backtest_source
+    assert '"end_time": end_time' in backtest_source
+    assert "benchmark_config=(" in backtest_source
+
+    assert "from ..tests.config import CSI300_BENCH" in report_source
+    assert "self.benches: dict = OrderedDict()" in report_source
+    assert 'pm["bench"] = pd.Series(self.benches)' in report_source
+    assert 'benchmark = benchmark_config.get("benchmark", CSI300_BENCH)' in report_source
+    assert "if benchmark_config is None:\n            return None" in report_source
+    assert "if benchmark is None:\n            return None" in report_source
+    assert "if isinstance(benchmark, pd.Series):\n            return benchmark" in report_source
+    assert "_codes = benchmark if isinstance(benchmark, (list, dict)) else [benchmark]" in report_source
+    assert 'fields = ["$close/Ref($close,1)-1"]' in report_source
+    assert "get_higher_eq_freq_feature(_codes, fields, start_time, end_time, freq=freq)" in report_source
+    assert 'raise ValueError("benchmark freq can\'t be None!")' in report_source
+    assert 'raise ValueError(f"The benchmark {_codes} does not exist. Please provide the right benchmark")' in (
+        report_source
+    )
+    assert '.groupby(level="datetime", group_keys=False)' in report_source
+    assert ".mean()\n                .fillna(0)" in report_source
+    assert "def cal_change(x):\n            return (x + 1).prod()" in report_source
+    assert "resam_ts_data(bench, trade_start_time, trade_end_time, method=cal_change)" in report_source
+    assert "return 0.0 if _ret is None else _ret - 1" in report_source
+    assert 'raise ValueError("Both trade_end_time and bench_value is None, benchmark is not usable.")' in report_source
+    assert "bench_value = self._sample_benchmark(self.bench, trade_start_time, trade_end_time)" in report_source
+    assert "self.benches[trade_start_time] = bench_value" in report_source
+
+
 def test_ashare_cash_settlement_contract_matches_position_source() -> None:
     contract = ashare_semantics.rdagent_ashare_semantic_contract()
     cash_settlement = contract["prompt_projection_payload"]["cash_settlement_semantics"]
@@ -1834,6 +1938,11 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
     assert (
         round_tripped["prompt_projection_payload"]["portfolio_risk_semantics"]["risk_analysis_authority"]
         == "qlib.contrib.evaluate.risk_analysis"
+    )
+    assert round_tripped["prompt_projection_payload"]["benchmark_return_semantics"]["default_benchmark"] == "SH000300"
+    assert (
+        round_tripped["prompt_projection_payload"]["benchmark_return_semantics"]["rdagent_rule"]
+        == "describe_only_do_not_redefine_benchmark_return_series_or_default_benchmark"
     )
     assert (
         round_tripped["prompt_projection_payload"]["suspension_tradability_semantics"]["rdagent_rule"]

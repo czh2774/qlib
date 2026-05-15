@@ -255,6 +255,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "executor_decision_semantics",
         "strategy_order_semantics",
         "portfolio_risk_semantics",
+        "benchmark_return_semantics",
         "suspension_tradability_semantics",
         "execution_price_semantics",
         "price_adjustment_semantics",
@@ -557,6 +558,34 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         ],
         "rdagent_rule": "describe_only_do_not_redefine_portfolio_risk_analysis_metrics",
     }
+    benchmark_return_semantics = {
+        "semantic_name": "a_share_benchmark_return_series",
+        "default_benchmark": "SH000300",
+        "benchmark_constant_authority": "qlib.tests.config.CSI300_BENCH",
+        "backtest_entry_authority": "qlib.backtest.backtest",
+        "account_config_authority": "qlib.backtest.create_account_instance",
+        "portfolio_metric_authority": "qlib.backtest.report.PortfolioMetrics",
+        "benchmark_calculation_authority": "qlib.backtest.report.PortfolioMetrics._cal_benchmark",
+        "benchmark_sampling_authority": "qlib.backtest.report.PortfolioMetrics._sample_benchmark",
+        "feature_query_authority": "qlib.utils.resam.get_higher_eq_freq_feature",
+        "resample_authority": "qlib.utils.resam.resam_ts_data",
+        "accepted_benchmark_inputs": ["str", "list", "dict", "pd.Series", "None"],
+        "default_rule": "missing_benchmark_key_uses_CSI300_BENCH_SH000300",
+        "none_rule": "benchmark_config_none_or_benchmark_none_disables_benchmark_series",
+        "series_rule": "pd_series_benchmark_is_used_directly_as_per_period_return_series",
+        "code_rule": "str_benchmark_is_queried_as_single_code_close_over_ref_close_minus_one",
+        "basket_rule": "list_or_dict_benchmark_is_queried_as_codes_and_averaged_by_datetime",
+        "benchmark_field_expression": "$close/Ref($close,1)-1",
+        "missing_frequency_rule": "non_series_benchmark_requires_freq_else_ValueError",
+        "missing_benchmark_rule": "empty_feature_result_raises_ValueError",
+        "fillna_rule": "queried_benchmark_returns_fillna_zero_after_datetime_average",
+        "sample_rule": "bar_benchmark_return_equals_product_of_one_plus_period_returns_minus_one",
+        "direct_bench_value_rule": "provided_bench_value_overrides_sampling",
+        "unusable_benchmark_rule": "trade_end_time_and_bench_value_both_none_raise_ValueError",
+        "report_column": "bench",
+        "portfolio_risk_dependency": "portfolio_risk_excess_returns_use_report_normal_bench_column",
+        "rdagent_rule": "describe_only_do_not_redefine_benchmark_return_series_or_default_benchmark",
+    }
     semantic_fingerprint = _stable_semantic_fingerprint(
         {
             "schema_version": schema_version,
@@ -573,6 +602,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "executor_decision_semantics": executor_decision_semantics,
             "strategy_order_semantics": strategy_order_semantics,
             "portfolio_risk_semantics": portfolio_risk_semantics,
+            "benchmark_return_semantics": benchmark_return_semantics,
             "rdagent_must_not_redefine": rdagent_must_not_redefine,
         }
     )
@@ -607,6 +637,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "redefine_executor_decision_lifecycle_or_nested_execution_order",
             "redefine_strategy_signal_to_order_generation",
             "redefine_portfolio_risk_analysis_metrics",
+            "redefine_benchmark_return_series_or_default_benchmark",
             "redefine_settlement_or_sellable_position_state",
             "redefine_cash_settlement_or_sell_proceeds_availability",
             "redefine_cash_buying_power_or_shorting_policy",
@@ -714,6 +745,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "executor_decision_semantics": executor_decision_semantics,
         "strategy_order_semantics": strategy_order_semantics,
         "portfolio_risk_semantics": portfolio_risk_semantics,
+        "benchmark_return_semantics": benchmark_return_semantics,
         "suspension_tradability_semantics": {
             "semantic_name": "a_share_suspension_tradability",
             "suspension_indicator_field": "$close",
@@ -846,7 +878,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "relationship_rule": (
                 "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
                 "but it must not redefine universe-membership, trading-calendar/data-frequency, trade unit, position, execution-price, price-adjustment, "
-                "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, executor/trade-decision lifecycle, strategy signal-to-order generation, portfolio risk analysis, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
+                "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, executor/trade-decision lifecycle, strategy signal-to-order generation, portfolio risk analysis, benchmark return, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
             ),
             "fail_closed_on_missing_contract": True,
         },
@@ -870,6 +902,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
                 "executor_decision_semantics",
                 "strategy_order_semantics",
                 "portfolio_risk_semantics",
+                "benchmark_return_semantics",
                 "rdagent_must_not_redefine",
             ],
             "rdagent_required_evidence_fields": [
@@ -908,6 +941,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
                 "executor_decision_semantics",
                 "strategy_order_semantics",
                 "portfolio_risk_semantics",
+                "benchmark_return_semantics",
                 "suspension_tradability_semantics",
                 "execution_price_semantics",
                 "price_adjustment_semantics",
