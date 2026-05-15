@@ -333,8 +333,8 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
         "rdagent_role": "research_candidate_generation_context_consumer",
         "relationship_rule": (
             "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
-            "but it must not redefine trade unit, position, execution-price, suspension/tradability, "
-            "price-limit, or cost semantics."
+            "but it must not redefine trade unit, position, execution-price, price-adjustment, "
+            "suspension/tradability, price-limit, or cost semantics."
         ),
         "fail_closed_on_missing_contract": True,
     }
@@ -345,12 +345,14 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     assert "redefine_transaction_cost_model" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert "redefine_suspension_or_tradability_rules" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert "redefine_execution_price_or_frequency" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
+    assert "redefine_price_adjustment_or_order_factor" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert "redefine_cost_model_or_exchange_kwargs" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert set(contract["failure_semantics"].values()) == {"fail_closed"}
     assert "instrument_identity_semantics" in contract["rdagent_must_not_redefine"]
     assert "transaction_cost_semantics" in contract["rdagent_must_not_redefine"]
     assert "suspension_tradability_semantics" in contract["rdagent_must_not_redefine"]
     assert "execution_price_semantics" in contract["rdagent_must_not_redefine"]
+    assert "price_adjustment_semantics" in contract["rdagent_must_not_redefine"]
     assert "cost_model" in contract["rdagent_must_not_redefine"]
     assert contract["market_semantics"]["region"] == "cn"
     assert contract["market_semantics"]["trade_unit"] == 100
@@ -464,6 +466,19 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "runtime_authority": "qlib.backtest.ashare_semantics.joinquant_ashare_exchange_kwargs",
         "rdagent_rule": "describe_only_do_not_redefine_execution_price_or_frequency",
     }
+    assert prompt_payload["price_adjustment_semantics"] == {
+        "semantic_name": "a_share_price_adjustment_order_factor",
+        "factor_field": "$factor",
+        "factor_usage": "convert_adjusted_amounts_to_trade_unit_amounts_when_unadjusted_prices_are_used",
+        "missing_factor_rule": (
+            "non_suspended_rows_with_missing_factor_use_adjusted_price_mode_and_disable_trade_unit_rounding"
+        ),
+        "adjusted_price_mode_rule": "trade_unit_rounding_is_not_supported_when_adjusted_price_mode_is_active",
+        "extra_quote_factor_rule": "missing_extra_quote_factor_defaults_to_one",
+        "suspension_interaction": "missing_factor_is_tolerated_when_close_is_missing",
+        "runtime_authority": "qlib.backtest.exchange.Exchange.round_amount_by_trade_unit",
+        "rdagent_rule": "describe_only_do_not_redefine_price_adjustment_or_order_factor",
+    }
     assert prompt_payload["price_limit_semantics"] == {
         "limit_threshold": "joinquant_ashare",
         "price_limit_mode": "strict",
@@ -505,6 +520,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "suspension_tradability_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     )
     assert "execution_price_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
+    assert "price_adjustment_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "price_limit_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "settlement_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "order_unit_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
@@ -559,6 +575,10 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
     assert (
         round_tripped["prompt_projection_payload"]["execution_price_semantics"]["rdagent_rule"]
         == "describe_only_do_not_redefine_execution_price_or_frequency"
+    )
+    assert (
+        round_tripped["prompt_projection_payload"]["price_adjustment_semantics"]["rdagent_rule"]
+        == "describe_only_do_not_redefine_price_adjustment_or_order_factor"
     )
     assert round_tripped["prompt_projection_payload"]["price_limit_semantics"]["price_limit_mode"] == "auto"
     assert round_tripped["prompt_projection_payload"]["settlement_semantics"]["settlement_rule"] == "t_plus_1_stock"
