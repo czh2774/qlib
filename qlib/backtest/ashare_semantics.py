@@ -260,6 +260,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "portfolio_risk_semantics",
         "feedback_metric_semantics",
         "benchmark_return_semantics",
+        "universe_benchmark_binding_semantics",
         "suspension_tradability_semantics",
         "execution_price_semantics",
         "price_adjustment_semantics",
@@ -739,6 +740,29 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "portfolio_risk_dependency": "portfolio_risk_excess_returns_use_report_normal_bench_column",
         "rdagent_rule": "describe_only_do_not_redefine_benchmark_return_series_or_default_benchmark",
     }
+    universe_benchmark_binding_semantics = {
+        "semantic_name": "a_share_rd_agent_universe_benchmark_binding",
+        "market_universe_authority": "qlib.tests.config.CSI300_MARKET",
+        "benchmark_authority": "qlib.tests.config.CSI300_BENCH",
+        "template_market_value": "csi300",
+        "template_benchmark_value": "SH000300",
+        "template_market_anchor": "market: &market csi300",
+        "template_instruments_binding": "instruments: *market",
+        "template_benchmark_anchor": "benchmark: &benchmark SH000300",
+        "template_backtest_benchmark_binding": "benchmark: *benchmark",
+        "market_universe_rule": "csi300_template_market_selects_instruments_only",
+        "benchmark_rule": "SH000300_template_benchmark_is_portfolio_excess_return_baseline_only",
+        "separation_rule": "market_universe_membership_and_benchmark_return_series_are_not_substitutable",
+        "forbidden_template_values": ["all_a", "all", "SH000300_as_market", "csi300_as_benchmark"],
+        "rdagent_template_paths": [
+            "rdagent/scenarios/qlib/experiment/factor_template/conf_baseline.yaml",
+            "rdagent/scenarios/qlib/experiment/factor_template/conf_combined_factors.yaml",
+            "rdagent/scenarios/qlib/experiment/factor_template/conf_combined_factors_sota_model.yaml",
+            "rdagent/scenarios/qlib/experiment/model_template/conf_baseline_factors_model.yaml",
+            "rdagent/scenarios/qlib/experiment/model_template/conf_sota_factors_model.yaml",
+        ],
+        "rdagent_rule": "bind_market_to_instruments_and_benchmark_to_backtest_without_cross_aliasing",
+    }
     semantic_fingerprint = _stable_semantic_fingerprint(
         {
             "schema_version": schema_version,
@@ -760,6 +784,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "portfolio_risk_semantics": portfolio_risk_semantics,
             "feedback_metric_semantics": feedback_metric_semantics,
             "benchmark_return_semantics": benchmark_return_semantics,
+            "universe_benchmark_binding_semantics": universe_benchmark_binding_semantics,
             "rdagent_must_not_redefine": rdagent_must_not_redefine,
         }
     )
@@ -799,6 +824,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "redefine_portfolio_risk_analysis_metrics",
             "redefine_feedback_metric_paths_or_label_derived_utility_as_qlib_metric",
             "redefine_benchmark_return_series_or_default_benchmark",
+            "redefine_universe_benchmark_template_binding_or_cross_alias_market_and_benchmark",
             "redefine_settlement_or_sellable_position_state",
             "redefine_cash_settlement_or_sell_proceeds_availability",
             "redefine_cash_buying_power_or_shorting_policy",
@@ -918,6 +944,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "portfolio_risk_semantics": portfolio_risk_semantics,
         "feedback_metric_semantics": feedback_metric_semantics,
         "benchmark_return_semantics": benchmark_return_semantics,
+        "universe_benchmark_binding_semantics": universe_benchmark_binding_semantics,
         "suspension_tradability_semantics": {
             "semantic_name": "a_share_suspension_tradability",
             "suspension_indicator_field": "$close",
@@ -1050,7 +1077,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "relationship_rule": (
                 "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
                 "but it must not redefine universe-membership, trading-calendar/data-frequency, trade unit, position, execution-price, price-adjustment, "
-                "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, executor/trade-decision lifecycle, strategy signal-to-order generation, supervised label, prediction signal, signal IC, portfolio risk analysis, feedback metric consumption, benchmark return, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
+                "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, executor/trade-decision lifecycle, strategy signal-to-order generation, supervised label, prediction signal, signal IC, portfolio risk analysis, feedback metric consumption, benchmark return, universe/benchmark binding, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
             ),
             "fail_closed_on_missing_contract": True,
         },
@@ -1079,6 +1106,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
                 "portfolio_risk_semantics",
                 "feedback_metric_semantics",
                 "benchmark_return_semantics",
+                "universe_benchmark_binding_semantics",
                 "rdagent_must_not_redefine",
             ],
             "rdagent_required_evidence_fields": [
@@ -1122,6 +1150,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
                 "portfolio_risk_semantics",
                 "feedback_metric_semantics",
                 "benchmark_return_semantics",
+                "universe_benchmark_binding_semantics",
                 "suspension_tradability_semantics",
                 "execution_price_semantics",
                 "price_adjustment_semantics",

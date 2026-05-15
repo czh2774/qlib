@@ -28,6 +28,7 @@ SIGNAL_STRATEGY_PATH = REPO_ROOT / "qlib/contrib/strategy/signal_strategy.py"
 DATA_PATH = REPO_ROOT / "qlib/data/data.py"
 STRATEGY_BASE_PATH = REPO_ROOT / "qlib/strategy/base.py"
 RECORD_TEMP_PATH = REPO_ROOT / "qlib/workflow/record_temp.py"
+CONFIG_PATH = REPO_ROOT / "qlib/tests/config.py"
 
 spec = importlib.util.spec_from_file_location("ashare_semantics_under_test", MODULE_PATH)
 assert spec is not None and spec.loader is not None
@@ -351,7 +352,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
             "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
             "but it must not redefine universe-membership, trading-calendar/data-frequency, trade unit, position, execution-price, "
             "price-adjustment, "
-            "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, executor/trade-decision lifecycle, strategy signal-to-order generation, supervised label, prediction signal, signal IC, portfolio risk analysis, feedback metric consumption, benchmark return, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
+            "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, executor/trade-decision lifecycle, strategy signal-to-order generation, supervised label, prediction signal, signal IC, portfolio risk analysis, feedback metric consumption, benchmark return, universe/benchmark binding, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
         ),
         "fail_closed_on_missing_contract": True,
     }
@@ -406,6 +407,10 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
         in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     )
     assert (
+        "redefine_universe_benchmark_template_binding_or_cross_alias_market_and_benchmark"
+        in contract["semantic_boundary"]["rdagent_forbidden_actions"]
+    )
+    assert (
         "redefine_settlement_or_sellable_position_state" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     )
     assert (
@@ -432,6 +437,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     assert "portfolio_risk_semantics" in contract["rdagent_must_not_redefine"]
     assert "feedback_metric_semantics" in contract["rdagent_must_not_redefine"]
     assert "benchmark_return_semantics" in contract["rdagent_must_not_redefine"]
+    assert "universe_benchmark_binding_semantics" in contract["rdagent_must_not_redefine"]
     assert "suspension_tradability_semantics" in contract["rdagent_must_not_redefine"]
     assert "execution_price_semantics" in contract["rdagent_must_not_redefine"]
     assert "price_adjustment_semantics" in contract["rdagent_must_not_redefine"]
@@ -485,6 +491,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "portfolio_risk_semantics" in evidence["fingerprint_scope"]
     assert "feedback_metric_semantics" in evidence["fingerprint_scope"]
     assert "benchmark_return_semantics" in evidence["fingerprint_scope"]
+    assert "universe_benchmark_binding_semantics" in evidence["fingerprint_scope"]
     assert "qlib_contract_fingerprint" in evidence["rdagent_required_evidence_fields"]
     assert (
         "runtime_surfaces.backtest_kwargs" in strict_contract["projection_contract"]["rdagent_prompt_forbidden_fields"]
@@ -977,6 +984,29 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "portfolio_risk_dependency": "portfolio_risk_excess_returns_use_report_normal_bench_column",
         "rdagent_rule": "describe_only_do_not_redefine_benchmark_return_series_or_default_benchmark",
     }
+    assert prompt_payload["universe_benchmark_binding_semantics"] == {
+        "semantic_name": "a_share_rd_agent_universe_benchmark_binding",
+        "market_universe_authority": "qlib.tests.config.CSI300_MARKET",
+        "benchmark_authority": "qlib.tests.config.CSI300_BENCH",
+        "template_market_value": "csi300",
+        "template_benchmark_value": "SH000300",
+        "template_market_anchor": "market: &market csi300",
+        "template_instruments_binding": "instruments: *market",
+        "template_benchmark_anchor": "benchmark: &benchmark SH000300",
+        "template_backtest_benchmark_binding": "benchmark: *benchmark",
+        "market_universe_rule": "csi300_template_market_selects_instruments_only",
+        "benchmark_rule": "SH000300_template_benchmark_is_portfolio_excess_return_baseline_only",
+        "separation_rule": "market_universe_membership_and_benchmark_return_series_are_not_substitutable",
+        "forbidden_template_values": ["all_a", "all", "SH000300_as_market", "csi300_as_benchmark"],
+        "rdagent_template_paths": [
+            "rdagent/scenarios/qlib/experiment/factor_template/conf_baseline.yaml",
+            "rdagent/scenarios/qlib/experiment/factor_template/conf_combined_factors.yaml",
+            "rdagent/scenarios/qlib/experiment/factor_template/conf_combined_factors_sota_model.yaml",
+            "rdagent/scenarios/qlib/experiment/model_template/conf_baseline_factors_model.yaml",
+            "rdagent/scenarios/qlib/experiment/model_template/conf_sota_factors_model.yaml",
+        ],
+        "rdagent_rule": "bind_market_to_instruments_and_benchmark_to_backtest_without_cross_aliasing",
+    }
     assert prompt_payload["suspension_tradability_semantics"] == {
         "semantic_name": "a_share_suspension_tradability",
         "suspension_indicator_field": "$close",
@@ -1167,6 +1197,10 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "portfolio_risk_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "feedback_metric_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "benchmark_return_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
+    assert (
+        "universe_benchmark_binding_semantics"
+        in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
+    )
     assert (
         "suspension_tradability_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     )
@@ -2262,6 +2296,36 @@ def test_ashare_benchmark_return_contract_matches_runtime_sources() -> None:
     assert 'raise ValueError("Both trade_end_time and bench_value is None, benchmark is not usable.")' in report_source
     assert "bench_value = self._sample_benchmark(self.bench, trade_start_time, trade_end_time)" in report_source
     assert "self.benches[trade_start_time] = bench_value" in report_source
+
+
+def test_ashare_universe_benchmark_binding_contract_matches_config_constants() -> None:
+    contract = ashare_semantics.rdagent_ashare_semantic_contract()
+    binding = contract["prompt_projection_payload"]["universe_benchmark_binding_semantics"]
+    config_source = CONFIG_PATH.read_text()
+
+    assert binding["semantic_name"] == "a_share_rd_agent_universe_benchmark_binding"
+    assert binding["market_universe_authority"] == "qlib.tests.config.CSI300_MARKET"
+    assert binding["benchmark_authority"] == "qlib.tests.config.CSI300_BENCH"
+    assert binding["template_market_value"] == "csi300"
+    assert binding["template_benchmark_value"] == "SH000300"
+    assert binding["template_market_anchor"] == "market: &market csi300"
+    assert binding["template_instruments_binding"] == "instruments: *market"
+    assert binding["template_benchmark_anchor"] == "benchmark: &benchmark SH000300"
+    assert binding["template_backtest_benchmark_binding"] == "benchmark: *benchmark"
+    assert binding["market_universe_rule"] == "csi300_template_market_selects_instruments_only"
+    assert binding["benchmark_rule"] == "SH000300_template_benchmark_is_portfolio_excess_return_baseline_only"
+    assert binding["separation_rule"] == "market_universe_membership_and_benchmark_return_series_are_not_substitutable"
+    assert binding["forbidden_template_values"] == ["all_a", "all", "SH000300_as_market", "csi300_as_benchmark"]
+    assert binding["rdagent_template_paths"] == [
+        "rdagent/scenarios/qlib/experiment/factor_template/conf_baseline.yaml",
+        "rdagent/scenarios/qlib/experiment/factor_template/conf_combined_factors.yaml",
+        "rdagent/scenarios/qlib/experiment/factor_template/conf_combined_factors_sota_model.yaml",
+        "rdagent/scenarios/qlib/experiment/model_template/conf_baseline_factors_model.yaml",
+        "rdagent/scenarios/qlib/experiment/model_template/conf_sota_factors_model.yaml",
+    ]
+    assert binding["rdagent_rule"] == "bind_market_to_instruments_and_benchmark_to_backtest_without_cross_aliasing"
+    assert 'CSI300_MARKET = "csi300"' in config_source
+    assert 'CSI300_BENCH = "SH000300"' in config_source
 
 
 def test_ashare_cash_settlement_contract_matches_position_source() -> None:
