@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import sys
+import types
 from pathlib import Path
 
 import pandas as pd
@@ -19,6 +20,99 @@ sys.modules[spec.name] = ashare_semantics
 spec.loader.exec_module(ashare_semantics)
 
 JoinQuantAshareBacktestPolicy = ashare_semantics.JoinQuantAshareBacktestPolicy
+
+
+class StubOrder:
+    SELL = 0
+    BUY = 1
+
+
+def _load_exchange_module_with_stubs():
+    module_names = (
+        "qlib",
+        "qlib.backtest",
+        "qlib.backtest.ashare_semantics",
+        "qlib.backtest.decision",
+        "qlib.backtest.exchange",
+        "qlib.backtest.high_performance_ds",
+        "qlib.backtest.position",
+        "qlib.config",
+        "qlib.constant",
+        "qlib.data",
+        "qlib.data.data",
+        "qlib.log",
+        "qlib.utils",
+        "qlib.utils.index_data",
+    )
+    previous_modules = {name: sys.modules.get(name) for name in module_names}
+
+    qlib_pkg = types.ModuleType("qlib")
+    qlib_pkg.__path__ = []
+    backtest_pkg = types.ModuleType("qlib.backtest")
+    backtest_pkg.__path__ = []
+    data_pkg = types.ModuleType("qlib.data")
+    data_pkg.__path__ = []
+    utils_pkg = types.ModuleType("qlib.utils")
+    utils_pkg.__path__ = []
+
+    ashare_module = types.ModuleType("qlib.backtest.ashare_semantics")
+    ashare_module.build_joinquant_ashare_policy = ashare_semantics.build_joinquant_ashare_policy
+    ashare_module.is_joinquant_ashare_limit_threshold = ashare_semantics.is_joinquant_ashare_limit_threshold
+
+    decision_module = types.ModuleType("qlib.backtest.decision")
+    decision_module.Order = StubOrder
+    decision_module.OrderDir = types.SimpleNamespace(BUY=StubOrder.BUY, SELL=StubOrder.SELL)
+    decision_module.OrderHelper = object
+
+    high_performance_module = types.ModuleType("qlib.backtest.high_performance_ds")
+    high_performance_module.BaseQuote = object
+    high_performance_module.NumpyQuote = object
+
+    position_module = types.ModuleType("qlib.backtest.position")
+    position_module.BasePosition = object
+
+    config_module = types.ModuleType("qlib.config")
+    config_module.C = types.SimpleNamespace(region="cn")
+    constant_module = types.ModuleType("qlib.constant")
+    constant_module.REG_CN = "cn"
+    constant_module.REG_TW = "tw"
+    data_module = types.ModuleType("qlib.data.data")
+    data_module.D = types.SimpleNamespace()
+    log_module = types.ModuleType("qlib.log")
+    log_module.get_module_logger = lambda *_args, **_kwargs: types.SimpleNamespace(info=lambda *_a, **_k: None)
+    index_data_module = types.ModuleType("qlib.utils.index_data")
+    index_data_module.IndexData = object
+
+    sys.modules.update(
+        {
+            "qlib": qlib_pkg,
+            "qlib.backtest": backtest_pkg,
+            "qlib.backtest.ashare_semantics": ashare_module,
+            "qlib.backtest.decision": decision_module,
+            "qlib.backtest.high_performance_ds": high_performance_module,
+            "qlib.backtest.position": position_module,
+            "qlib.config": config_module,
+            "qlib.constant": constant_module,
+            "qlib.data": data_pkg,
+            "qlib.data.data": data_module,
+            "qlib.log": log_module,
+            "qlib.utils": utils_pkg,
+            "qlib.utils.index_data": index_data_module,
+        }
+    )
+    try:
+        exchange_spec = importlib.util.spec_from_file_location("qlib.backtest.exchange", EXCHANGE_PATH)
+        assert exchange_spec is not None and exchange_spec.loader is not None
+        exchange_module = importlib.util.module_from_spec(exchange_spec)
+        sys.modules[exchange_spec.name] = exchange_module
+        exchange_spec.loader.exec_module(exchange_module)
+        return exchange_module
+    finally:
+        for name, module in previous_modules.items():
+            if module is None:
+                sys.modules.pop(name, None)
+            else:
+                sys.modules[name] = module
 
 
 def _quote_frame(rows: list[tuple[str, str, dict[str, float | None]]]) -> pd.DataFrame:
@@ -365,7 +459,9 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
 
 
 def test_exchange_joinquant_ashare_cost_helper_preserves_split_sell_tax() -> None:
-    from qlib.backtest.exchange import Exchange, Order
+    exchange_module = _load_exchange_module_with_stubs()
+    Exchange = exchange_module.Exchange
+    Order = exchange_module.Order
 
     exchange = object.__new__(Exchange)
     exchange._joinquant_ashare_policy = ashare_semantics.build_joinquant_ashare_policy()
