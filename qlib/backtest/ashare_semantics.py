@@ -247,6 +247,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "transaction_cost_semantics",
         "suspension_tradability_semantics",
         "execution_price_semantics",
+        "price_adjustment_semantics",
         "trade_unit",
         "position_type",
         "settlement_rule",
@@ -281,6 +282,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "redefine_transaction_cost_model",
             "redefine_suspension_or_tradability_rules",
             "redefine_execution_price_or_frequency",
+            "redefine_price_adjustment_or_order_factor",
             "redefine_trade_unit_or_position_type",
             "redefine_price_limit_thresholds_or_authoritative_fields",
             "redefine_cost_model_or_exchange_kwargs",
@@ -385,6 +387,19 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "runtime_authority": "qlib.backtest.ashare_semantics.joinquant_ashare_exchange_kwargs",
             "rdagent_rule": "describe_only_do_not_redefine_execution_price_or_frequency",
         },
+        "price_adjustment_semantics": {
+            "semantic_name": "a_share_price_adjustment_order_factor",
+            "factor_field": "$factor",
+            "factor_usage": "convert_adjusted_amounts_to_trade_unit_amounts_when_unadjusted_prices_are_used",
+            "missing_factor_rule": (
+                "non_suspended_rows_with_missing_factor_use_adjusted_price_mode_and_disable_trade_unit_rounding"
+            ),
+            "adjusted_price_mode_rule": "trade_unit_rounding_is_not_supported_when_adjusted_price_mode_is_active",
+            "extra_quote_factor_rule": "missing_extra_quote_factor_defaults_to_one",
+            "suspension_interaction": "missing_factor_is_tolerated_when_close_is_missing",
+            "runtime_authority": "qlib.backtest.exchange.Exchange.round_amount_by_trade_unit",
+            "rdagent_rule": "describe_only_do_not_redefine_price_adjustment_or_order_factor",
+        },
         "price_limit_semantics": {
             "limit_threshold": market_semantics["limit_threshold"],
             "price_limit_mode": runtime_surfaces["exchange_kwargs"]["ashare_price_limit_mode"],
@@ -431,8 +446,8 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "rdagent_role": "research_candidate_generation_context_consumer",
             "relationship_rule": (
                 "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
-                "but it must not redefine trade unit, position, execution-price, suspension/tradability, "
-                "price-limit, or cost semantics."
+                "but it must not redefine trade unit, position, execution-price, price-adjustment, "
+                "suspension/tradability, price-limit, or cost semantics."
             ),
             "fail_closed_on_missing_contract": True,
         },
@@ -475,6 +490,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
                 "transaction_cost_semantics",
                 "suspension_tradability_semantics",
                 "execution_price_semantics",
+                "price_adjustment_semantics",
                 "price_limit_semantics",
                 "settlement_semantics",
                 "order_unit_semantics",
