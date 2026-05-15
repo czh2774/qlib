@@ -352,7 +352,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
             "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
             "but it must not redefine universe-membership, trading-calendar/data-frequency, trade unit, position, execution-price, "
             "price-adjustment, "
-            "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, executor/trade-decision lifecycle, strategy signal-to-order generation, supervised label, prediction signal, signal IC, portfolio risk analysis, feedback metric consumption, benchmark return, universe/benchmark binding, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
+            "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, executor/trade-decision lifecycle, strategy signal-to-order generation, supervised label, prediction signal, signal IC, portfolio risk analysis, feedback metric consumption, benchmark return, universe/benchmark binding, runtime handoff template binding, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
         ),
         "fail_closed_on_missing_contract": True,
     }
@@ -411,6 +411,10 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
         in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     )
     assert (
+        "redefine_runtime_handoff_or_template_execution_kwargs"
+        in contract["semantic_boundary"]["rdagent_forbidden_actions"]
+    )
+    assert (
         "redefine_settlement_or_sellable_position_state" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     )
     assert (
@@ -438,6 +442,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     assert "feedback_metric_semantics" in contract["rdagent_must_not_redefine"]
     assert "benchmark_return_semantics" in contract["rdagent_must_not_redefine"]
     assert "universe_benchmark_binding_semantics" in contract["rdagent_must_not_redefine"]
+    assert "runtime_handoff_template_binding_semantics" in contract["rdagent_must_not_redefine"]
     assert "suspension_tradability_semantics" in contract["rdagent_must_not_redefine"]
     assert "execution_price_semantics" in contract["rdagent_must_not_redefine"]
     assert "price_adjustment_semantics" in contract["rdagent_must_not_redefine"]
@@ -492,6 +497,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "feedback_metric_semantics" in evidence["fingerprint_scope"]
     assert "benchmark_return_semantics" in evidence["fingerprint_scope"]
     assert "universe_benchmark_binding_semantics" in evidence["fingerprint_scope"]
+    assert "runtime_handoff_template_binding_semantics" in evidence["fingerprint_scope"]
     assert "qlib_contract_fingerprint" in evidence["rdagent_required_evidence_fields"]
     assert (
         "runtime_surfaces.backtest_kwargs" in strict_contract["projection_contract"]["rdagent_prompt_forbidden_fields"]
@@ -1202,6 +1208,10 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     )
     assert (
+        "runtime_handoff_template_binding_semantics"
+        in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
+    )
+    assert (
         "suspension_tradability_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     )
     assert "execution_price_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
@@ -1228,6 +1238,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
 def test_rdagent_ashare_contract_splits_prompt_projection_from_runtime_handoff() -> None:
     contract = ashare_semantics.rdagent_ashare_semantic_contract()
     handoff = contract["runtime_handoff_contract"]
+    template_binding = handoff["template_runtime_binding"]
 
     assert handoff["handoff_id"] == "qlib_joinquant_ashare_runtime_handoff_v1"
     assert handoff["handoff_kind"] == "qlib_owned_execution_kwargs"
@@ -1241,6 +1252,43 @@ def test_rdagent_ashare_contract_splits_prompt_projection_from_runtime_handoff()
     assert "runtime_surfaces.policy_defaults" in handoff["forbidden_prompt_paths"]
     assert handoff["mutation_policy"] == "pass_through_only"
     assert "do_not_mutate_runtime_payload_values" in handoff["consumer_obligations"]
+    assert template_binding["semantic_name"] == "a_share_rd_agent_runtime_handoff_template_binding"
+    assert template_binding["handoff_id"] == handoff["handoff_id"]
+    assert template_binding["binding_kind"] == "rdagent_qlib_template_backtest_runtime_kwargs"
+    assert template_binding["rdagent_template_paths"] == [
+        "rdagent/scenarios/qlib/experiment/factor_template/conf_baseline.yaml",
+        "rdagent/scenarios/qlib/experiment/factor_template/conf_combined_factors.yaml",
+        "rdagent/scenarios/qlib/experiment/factor_template/conf_combined_factors_sota_model.yaml",
+        "rdagent/scenarios/qlib/experiment/model_template/conf_baseline_factors_model.yaml",
+        "rdagent/scenarios/qlib/experiment/model_template/conf_sota_factors_model.yaml",
+    ]
+    assert template_binding["required_backtest_kwargs"] == ashare_semantics.joinquant_ashare_backtest_kwargs()
+    assert template_binding["forbidden_legacy_exchange_kwargs"] == {
+        "limit_threshold": 0.095,
+        "open_cost": 0.0005,
+        "close_cost": 0.0015,
+    }
+    assert (
+        template_binding["runtime_rule"]
+        == "rdagent_templates_must_bind_port_analysis_backtest_to_qlib_runtime_handoff_values"
+    )
+    assert template_binding["prompt_boundary_rule"] == "execution_kwargs_remain_runtime_handoff_not_prompt_authority"
+    assert (
+        template_binding["rdagent_rule"]
+        == "consume_qlib_runtime_handoff_values_without_redefining_a_share_execution_kwargs"
+    )
+    prompt_binding = contract["prompt_projection_payload"]["runtime_handoff_template_binding_semantics"]
+    assert prompt_binding == {
+        "semantic_name": "a_share_rd_agent_runtime_handoff_template_binding",
+        "handoff_id": handoff["handoff_id"],
+        "binding_kind": "rdagent_qlib_template_backtest_runtime_kwargs",
+        "rdagent_template_paths": template_binding["rdagent_template_paths"],
+        "runtime_rule": "rdagent_templates_must_bind_port_analysis_backtest_to_qlib_runtime_handoff_values",
+        "prompt_boundary_rule": "execution_kwargs_remain_runtime_handoff_not_prompt_authority",
+        "rdagent_rule": "consume_qlib_runtime_handoff_values_without_redefining_a_share_execution_kwargs",
+    }
+    assert "required_backtest_kwargs" not in prompt_binding
+    assert "forbidden_legacy_exchange_kwargs" not in prompt_binding
 
 
 def test_ashare_cash_constraint_contract_matches_exchange_source() -> None:
@@ -2592,6 +2640,9 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
         == "describe_only_do_not_redefine_trade_unit_or_round_lot_policy"
     )
     assert round_tripped["runtime_handoff_contract"]["mutation_policy"] == "pass_through_only"
+    assert round_tripped["runtime_handoff_contract"]["template_runtime_binding"][
+        "required_backtest_kwargs"
+    ] == ashare_semantics.joinquant_ashare_backtest_kwargs(strict_price_limit=False)
 
 
 def test_exchange_joinquant_ashare_cost_helper_preserves_split_sell_tax() -> None:

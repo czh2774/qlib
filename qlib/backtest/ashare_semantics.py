@@ -261,6 +261,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "feedback_metric_semantics",
         "benchmark_return_semantics",
         "universe_benchmark_binding_semantics",
+        "runtime_handoff_template_binding_semantics",
         "suspension_tradability_semantics",
         "execution_price_semantics",
         "price_adjustment_semantics",
@@ -763,6 +764,27 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         ],
         "rdagent_rule": "bind_market_to_instruments_and_benchmark_to_backtest_without_cross_aliasing",
     }
+    runtime_handoff_template_binding_semantics = {
+        "semantic_name": "a_share_rd_agent_runtime_handoff_template_binding",
+        "handoff_id": RDAGENT_ASHARE_RUNTIME_HANDOFF_ID,
+        "binding_kind": "rdagent_qlib_template_backtest_runtime_kwargs",
+        "rdagent_template_paths": [
+            "rdagent/scenarios/qlib/experiment/factor_template/conf_baseline.yaml",
+            "rdagent/scenarios/qlib/experiment/factor_template/conf_combined_factors.yaml",
+            "rdagent/scenarios/qlib/experiment/factor_template/conf_combined_factors_sota_model.yaml",
+            "rdagent/scenarios/qlib/experiment/model_template/conf_baseline_factors_model.yaml",
+            "rdagent/scenarios/qlib/experiment/model_template/conf_sota_factors_model.yaml",
+        ],
+        "required_backtest_kwargs": joinquant_ashare_backtest_kwargs(strict_price_limit=strict_price_limit),
+        "forbidden_legacy_exchange_kwargs": {
+            "limit_threshold": 0.095,
+            "open_cost": 0.0005,
+            "close_cost": 0.0015,
+        },
+        "runtime_rule": "rdagent_templates_must_bind_port_analysis_backtest_to_qlib_runtime_handoff_values",
+        "prompt_boundary_rule": "execution_kwargs_remain_runtime_handoff_not_prompt_authority",
+        "rdagent_rule": "consume_qlib_runtime_handoff_values_without_redefining_a_share_execution_kwargs",
+    }
     semantic_fingerprint = _stable_semantic_fingerprint(
         {
             "schema_version": schema_version,
@@ -785,6 +807,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "feedback_metric_semantics": feedback_metric_semantics,
             "benchmark_return_semantics": benchmark_return_semantics,
             "universe_benchmark_binding_semantics": universe_benchmark_binding_semantics,
+            "runtime_handoff_template_binding_semantics": runtime_handoff_template_binding_semantics,
             "rdagent_must_not_redefine": rdagent_must_not_redefine,
         }
     )
@@ -825,6 +848,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "redefine_feedback_metric_paths_or_label_derived_utility_as_qlib_metric",
             "redefine_benchmark_return_series_or_default_benchmark",
             "redefine_universe_benchmark_template_binding_or_cross_alias_market_and_benchmark",
+            "redefine_runtime_handoff_or_template_execution_kwargs",
             "redefine_settlement_or_sellable_position_state",
             "redefine_cash_settlement_or_sell_proceeds_availability",
             "redefine_cash_buying_power_or_shorting_policy",
@@ -945,6 +969,15 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "feedback_metric_semantics": feedback_metric_semantics,
         "benchmark_return_semantics": benchmark_return_semantics,
         "universe_benchmark_binding_semantics": universe_benchmark_binding_semantics,
+        "runtime_handoff_template_binding_semantics": {
+            "semantic_name": runtime_handoff_template_binding_semantics["semantic_name"],
+            "handoff_id": runtime_handoff_template_binding_semantics["handoff_id"],
+            "binding_kind": runtime_handoff_template_binding_semantics["binding_kind"],
+            "rdagent_template_paths": list(runtime_handoff_template_binding_semantics["rdagent_template_paths"]),
+            "runtime_rule": runtime_handoff_template_binding_semantics["runtime_rule"],
+            "prompt_boundary_rule": runtime_handoff_template_binding_semantics["prompt_boundary_rule"],
+            "rdagent_rule": runtime_handoff_template_binding_semantics["rdagent_rule"],
+        },
         "suspension_tradability_semantics": {
             "semantic_name": "a_share_suspension_tradability",
             "suspension_indicator_field": "$close",
@@ -1077,7 +1110,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "relationship_rule": (
                 "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
                 "but it must not redefine universe-membership, trading-calendar/data-frequency, trade unit, position, execution-price, price-adjustment, "
-                "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, executor/trade-decision lifecycle, strategy signal-to-order generation, supervised label, prediction signal, signal IC, portfolio risk analysis, feedback metric consumption, benchmark return, universe/benchmark binding, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
+                "suspension/tradability, price-limit, order-tradability, order-fill, account-position update, account valuation, trade indicator/execution-quality, executor/trade-decision lifecycle, strategy signal-to-order generation, supervised label, prediction signal, signal IC, portfolio risk analysis, feedback metric consumption, benchmark return, universe/benchmark binding, runtime handoff template binding, settlement, cash-settlement, cash/shorting, liquidity/capacity, market-impact, or cost semantics."
             ),
             "fail_closed_on_missing_contract": True,
         },
@@ -1107,6 +1140,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
                 "feedback_metric_semantics",
                 "benchmark_return_semantics",
                 "universe_benchmark_binding_semantics",
+                "runtime_handoff_template_binding_semantics",
                 "rdagent_must_not_redefine",
             ],
             "rdagent_required_evidence_fields": [
@@ -1151,6 +1185,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
                 "feedback_metric_semantics",
                 "benchmark_return_semantics",
                 "universe_benchmark_binding_semantics",
+                "runtime_handoff_template_binding_semantics",
                 "suspension_tradability_semantics",
                 "execution_price_semantics",
                 "price_adjustment_semantics",
@@ -1194,6 +1229,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
                 "do_not_mutate_runtime_payload_values",
                 "fail_closed_on_missing_payload_or_fingerprint",
             ],
+            "template_runtime_binding": runtime_handoff_template_binding_semantics,
         },
         "market_semantics": market_semantics,
         "runtime_surfaces": runtime_surfaces,
