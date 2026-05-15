@@ -21,6 +21,7 @@ JOINQUANT_ASHARE_ALIASES = frozenset(
 RDAGENT_ASHARE_CONTRACT_ID = "rdagent_qlib_joinquant_ashare_semantic_contract_v1"
 RDAGENT_ASHARE_RUNTIME_HANDOFF_ID = "qlib_joinquant_ashare_runtime_handoff_v1"
 RDAGENT_ASHARE_PROMPT_PROJECTION_ID = "qlib_joinquant_ashare_prompt_projection_v1"
+RDAGENT_ASHARE_PROMPT_PROJECTION_SCHEMA_VERSION = "qlib_ashare_prompt_projection.v1"
 QLIB_ASHARE_AUTHORITY_COMPONENT = "qlib.backtest.ashare_semantics"
 RDAGENT_ASHARE_CONSUMER_COMPONENT = "rdagent.scenarios.qlib.ashare_semantics"
 
@@ -214,6 +215,8 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "region": "cn",
         "trade_unit": policy.trade_unit,
         "position_type": policy.position_type,
+        "settlement_rule": "t_plus_1_stock",
+        "same_day_sell_policy": "shares_bought_today_are_unsellable_until_day_commit",
         "deal_price": policy.deal_price,
         "limit_threshold": JOINQUANT_ASHARE_LIMIT_THRESHOLD,
         "limit_threshold_aliases": sorted(JOINQUANT_ASHARE_ALIASES),
@@ -242,6 +245,8 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
     rdagent_must_not_redefine = [
         "trade_unit",
         "position_type",
+        "settlement_rule",
+        "same_day_sell_policy",
         "limit_threshold_aliases",
         "price_limit_modes",
         "authoritative_limit_fields",
@@ -285,7 +290,10 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
     }
     prompt_projection_payload = {
         "projection_id": RDAGENT_ASHARE_PROMPT_PROJECTION_ID,
+        "projection_schema_version": RDAGENT_ASHARE_PROMPT_PROJECTION_SCHEMA_VERSION,
+        "projection_kind": "research_prompt_context_only",
         "contract_id": RDAGENT_ASHARE_CONTRACT_ID,
+        "contract_schema_version": schema_version,
         "schema_version": schema_version,
         "source_component": QLIB_ASHARE_AUTHORITY_COMPONENT,
         "consumer_component": RDAGENT_ASHARE_CONSUMER_COMPONENT,
@@ -297,8 +305,16 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "region": market_semantics["region"],
             "trade_unit": market_semantics["trade_unit"],
             "position_type": market_semantics["position_type"],
+            "settlement_rule": market_semantics["settlement_rule"],
             "limit_threshold": market_semantics["limit_threshold"],
             "authoritative_limit_fields": list(market_semantics["authoritative_limit_fields"]),
+        },
+        "settlement_semantics": {
+            "settlement_rule": market_semantics["settlement_rule"],
+            "same_day_sell_policy": market_semantics["same_day_sell_policy"],
+            "position_type": market_semantics["position_type"],
+            "runtime_authority": "qlib.backtest.position.AsharePosition",
+            "rdagent_rule": "describe_only_do_not_redefine_position_or_settlement",
         },
     }
     return {
@@ -348,8 +364,10 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
                 "market_semantics.region",
                 "market_semantics.trade_unit",
                 "market_semantics.position_type",
+                "market_semantics.settlement_rule",
                 "market_semantics.limit_threshold",
                 "market_semantics.authoritative_limit_fields",
+                "settlement_semantics",
             ],
             "rdagent_prompt_forbidden_fields": [
                 "runtime_surfaces.policy_defaults",

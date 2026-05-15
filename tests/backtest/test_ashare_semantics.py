@@ -240,6 +240,10 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     assert contract["market_semantics"]["region"] == "cn"
     assert contract["market_semantics"]["trade_unit"] == 100
     assert contract["market_semantics"]["position_type"] == "AsharePosition"
+    assert contract["market_semantics"]["settlement_rule"] == "t_plus_1_stock"
+    assert contract["market_semantics"]["same_day_sell_policy"] == (
+        "shares_bought_today_are_unsellable_until_day_commit"
+    )
     assert contract["runtime_surfaces"]["exchange_kwargs"] == ashare_semantics.joinquant_ashare_exchange_kwargs()
     assert contract["runtime_surfaces"]["backtest_kwargs"] == ashare_semantics.joinquant_ashare_backtest_kwargs()
 
@@ -264,15 +268,29 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     )
     assert "market_semantics.cost_model" in strict_contract["projection_contract"]["rdagent_prompt_forbidden_fields"]
     assert prompt_payload["projection_id"] == "qlib_joinquant_ashare_prompt_projection_v1"
+    assert prompt_payload["projection_schema_version"] == "qlib_ashare_prompt_projection.v1"
+    assert prompt_payload["projection_kind"] == "research_prompt_context_only"
+    assert prompt_payload["contract_schema_version"] == "qlib_ashare_semantic_contract.v1"
     assert prompt_payload["semantic_fingerprint"] == evidence["semantic_fingerprint"]
     assert prompt_payload["market_semantics"] == {
         "market": "china_a_share",
         "region": "cn",
         "trade_unit": 100,
         "position_type": "AsharePosition",
+        "settlement_rule": "t_plus_1_stock",
         "limit_threshold": "joinquant_ashare",
         "authoritative_limit_fields": ["$up_limit", "$down_limit"],
     }
+    assert prompt_payload["settlement_semantics"] == {
+        "settlement_rule": "t_plus_1_stock",
+        "same_day_sell_policy": "shares_bought_today_are_unsellable_until_day_commit",
+        "position_type": "AsharePosition",
+        "runtime_authority": "qlib.backtest.position.AsharePosition",
+        "rdagent_rule": "describe_only_do_not_redefine_position_or_settlement",
+    }
+    assert "settlement_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
+    assert "settlement_rule" in strict_contract["rdagent_must_not_redefine"]
+    assert "same_day_sell_policy" in strict_contract["rdagent_must_not_redefine"]
     assert not _contains_key(prompt_payload, {"runtime_surfaces", "cost_model", "exchange_kwargs", "backtest_kwargs"})
     assert "open_cost" not in json.dumps(prompt_payload, sort_keys=True)
 
@@ -306,6 +324,7 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
     assert round_tripped["market_semantics"]["cost_model"]["close_tax"] == pytest.approx(0.001)
     assert round_tripped["failure_semantics"]["malformed_contract"] == "fail_closed"
     assert round_tripped["prompt_projection_payload"]["projection_id"] == "qlib_joinquant_ashare_prompt_projection_v1"
+    assert round_tripped["prompt_projection_payload"]["settlement_semantics"]["settlement_rule"] == "t_plus_1_stock"
     assert round_tripped["runtime_handoff_contract"]["mutation_policy"] == "pass_through_only"
 
 
