@@ -883,6 +883,11 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "rdagent_model_task_boundary_rule": (
             "rdagent_qlib_model_tasks_must_carry_prediction_signal_score_boundary_to_model_implementation_coder"
         ),
+        "rdagent_model_type_boundary_rule": (
+            "rdagent_qlib_model_experiment_outputs_must_use_tabular_or_timeseries_model_type_only"
+        ),
+        "rdagent_supported_model_types": ["Tabular", "TimeSeries"],
+        "rdagent_forbidden_model_types": ["Graph", "XGBoost"],
         "rdagent_implementation_prompt_paths": [
             "rdagent/components/coder/model_coder/prompts.yaml",
         ],
@@ -2174,6 +2179,12 @@ def test_ashare_prediction_signal_contract_matches_runtime_sources() -> None:
         signal_semantics["rdagent_model_task_boundary_rule"]
         == "rdagent_qlib_model_tasks_must_carry_prediction_signal_score_boundary_to_model_implementation_coder"
     )
+    assert (
+        signal_semantics["rdagent_model_type_boundary_rule"]
+        == "rdagent_qlib_model_experiment_outputs_must_use_tabular_or_timeseries_model_type_only"
+    )
+    assert signal_semantics["rdagent_supported_model_types"] == ["Tabular", "TimeSeries"]
+    assert signal_semantics["rdagent_forbidden_model_types"] == ["Graph", "XGBoost"]
     assert signal_semantics["rdagent_implementation_prompt_paths"] == [
         "rdagent/components/coder/model_coder/prompts.yaml",
     ]
@@ -2849,6 +2860,16 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
         round_tripped["prompt_projection_payload"]["prediction_signal_semantics"]["rdagent_model_task_boundary_rule"]
         == "rdagent_qlib_model_tasks_must_carry_prediction_signal_score_boundary_to_model_implementation_coder"
     )
+    assert (
+        round_tripped["prompt_projection_payload"]["prediction_signal_semantics"]["rdagent_model_type_boundary_rule"]
+        == "rdagent_qlib_model_experiment_outputs_must_use_tabular_or_timeseries_model_type_only"
+    )
+    assert round_tripped["prompt_projection_payload"]["prediction_signal_semantics"][
+        "rdagent_supported_model_types"
+    ] == ["Tabular", "TimeSeries"]
+    assert round_tripped["prompt_projection_payload"]["prediction_signal_semantics"][
+        "rdagent_forbidden_model_types"
+    ] == ["Graph", "XGBoost"]
     assert round_tripped["prompt_projection_payload"]["prediction_signal_semantics"][
         "rdagent_implementation_prompt_paths"
     ] == ["rdagent/components/coder/model_coder/prompts.yaml"]
