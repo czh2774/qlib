@@ -253,6 +253,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "price_adjustment_semantics",
         "price_limit_semantics",
         "settlement_semantics",
+        "cash_settlement_semantics",
         "cash_constraint_semantics",
         "liquidity_capacity_semantics",
         "trade_unit",
@@ -281,12 +282,29 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "survivorship_rule": "membership_must_remain_point_in_time_by_qlib_instrument_spans_and_filters",
         "rdagent_rule": "describe_only_do_not_redefine_universe_membership_or_filters",
     }
+    cash_settlement_semantics = {
+        "semantic_name": "a_share_sell_proceeds_cash_settlement",
+        "settlement_authority": "qlib.backtest.position.Position",
+        "settle_start_authority": "qlib.backtest.position.Position.settle_start",
+        "settle_commit_authority": "qlib.backtest.position.Position.settle_commit",
+        "available_cash_authority": "qlib.backtest.position.Position.get_cash",
+        "delayed_cash_state_field": "cash_delay",
+        "delayed_cash_mode": "Position.ST_CASH",
+        "no_delay_cash_mode": "Position.ST_NO",
+        "sell_proceeds_rule": "sell_proceeds_enter_cash_delay_when_settle_type_is_cash",
+        "default_sell_proceeds_rule": "sell_proceeds_enter_cash_immediately_when_settle_type_is_none",
+        "available_cash_rule": "get_cash_excludes_cash_delay_unless_include_settle_is_true",
+        "account_value_rule": "calculate_value_includes_cash_delay",
+        "commit_rule": "settle_commit_moves_cash_delay_into_cash_and_clears_delay_state",
+        "rdagent_rule": "describe_only_do_not_redefine_cash_settlement_or_sell_proceeds_availability",
+    }
     semantic_fingerprint = _stable_semantic_fingerprint(
         {
             "schema_version": schema_version,
             "market_semantics": market_semantics,
             "runtime_surfaces": runtime_surfaces,
             "universe_membership_semantics": universe_membership_semantics,
+            "cash_settlement_semantics": cash_settlement_semantics,
             "rdagent_must_not_redefine": rdagent_must_not_redefine,
         }
     )
@@ -313,6 +331,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "redefine_price_limit_thresholds_or_authoritative_fields",
             "treat_board_fallback_as_primary_price_limit_authority",
             "redefine_settlement_or_sellable_position_state",
+            "redefine_cash_settlement_or_sell_proceeds_availability",
             "redefine_cash_buying_power_or_shorting_policy",
             "redefine_liquidity_or_volume_capacity_policy",
             "redefine_cost_model_or_exchange_kwargs",
@@ -500,6 +519,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "position_cash_authority": "qlib.backtest.position.Position.get_cash",
             "rdagent_rule": "describe_only_do_not_redefine_cash_or_shorting_policy",
         },
+        "cash_settlement_semantics": cash_settlement_semantics,
         "liquidity_capacity_semantics": {
             "semantic_name": "a_share_volume_capacity_limit",
             "volume_field": "$volume",
@@ -540,7 +560,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "relationship_rule": (
                 "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
                 "but it must not redefine universe-membership, trading-calendar/data-frequency, trade unit, position, execution-price, price-adjustment, "
-                "suspension/tradability, price-limit, settlement, cash/shorting, liquidity/capacity, or cost semantics."
+                "suspension/tradability, price-limit, settlement, cash-settlement, cash/shorting, liquidity/capacity, or cost semantics."
             ),
             "fail_closed_on_missing_contract": True,
         },
@@ -554,6 +574,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
                 "market_semantics",
                 "runtime_surfaces",
                 "universe_membership_semantics",
+                "cash_settlement_semantics",
                 "rdagent_must_not_redefine",
             ],
             "rdagent_required_evidence_fields": [
@@ -590,6 +611,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
                 "price_adjustment_semantics",
                 "price_limit_semantics",
                 "settlement_semantics",
+                "cash_settlement_semantics",
                 "cash_constraint_semantics",
                 "liquidity_capacity_semantics",
                 "order_unit_semantics",

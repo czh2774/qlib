@@ -12,6 +12,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MODULE_PATH = REPO_ROOT / "qlib/backtest/ashare_semantics.py"
 EXCHANGE_PATH = REPO_ROOT / "qlib/backtest/exchange.py"
+POSITION_PATH = REPO_ROOT / "qlib/backtest/position.py"
 DATA_PATH = REPO_ROOT / "qlib/data/data.py"
 
 spec = importlib.util.spec_from_file_location("ashare_semantics_under_test", MODULE_PATH)
@@ -336,7 +337,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
             "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
             "but it must not redefine universe-membership, trading-calendar/data-frequency, trade unit, position, execution-price, "
             "price-adjustment, "
-            "suspension/tradability, price-limit, settlement, cash/shorting, liquidity/capacity, or cost semantics."
+            "suspension/tradability, price-limit, settlement, cash-settlement, cash/shorting, liquidity/capacity, or cost semantics."
         ),
         "fail_closed_on_missing_contract": True,
     }
@@ -360,6 +361,10 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     assert (
         "redefine_settlement_or_sellable_position_state" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     )
+    assert (
+        "redefine_cash_settlement_or_sell_proceeds_availability"
+        in contract["semantic_boundary"]["rdagent_forbidden_actions"]
+    )
     assert "redefine_cash_buying_power_or_shorting_policy" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert "redefine_liquidity_or_volume_capacity_policy" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert "redefine_cost_model_or_exchange_kwargs" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
@@ -373,6 +378,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     assert "price_adjustment_semantics" in contract["rdagent_must_not_redefine"]
     assert "price_limit_semantics" in contract["rdagent_must_not_redefine"]
     assert "settlement_semantics" in contract["rdagent_must_not_redefine"]
+    assert "cash_settlement_semantics" in contract["rdagent_must_not_redefine"]
     assert "cash_constraint_semantics" in contract["rdagent_must_not_redefine"]
     assert "liquidity_capacity_semantics" in contract["rdagent_must_not_redefine"]
     assert "cost_model" in contract["rdagent_must_not_redefine"]
@@ -403,6 +409,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     )
     assert evidence["semantic_fingerprint"] != relaxed_contract["evidence_contract"]["semantic_fingerprint"]
     assert "universe_membership_semantics" in evidence["fingerprint_scope"]
+    assert "cash_settlement_semantics" in evidence["fingerprint_scope"]
     assert "qlib_contract_fingerprint" in evidence["rdagent_required_evidence_fields"]
     assert (
         "runtime_surfaces.backtest_kwargs" in strict_contract["projection_contract"]["rdagent_prompt_forbidden_fields"]
@@ -588,6 +595,22 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "position_cash_authority": "qlib.backtest.position.Position.get_cash",
         "rdagent_rule": "describe_only_do_not_redefine_cash_or_shorting_policy",
     }
+    assert prompt_payload["cash_settlement_semantics"] == {
+        "semantic_name": "a_share_sell_proceeds_cash_settlement",
+        "settlement_authority": "qlib.backtest.position.Position",
+        "settle_start_authority": "qlib.backtest.position.Position.settle_start",
+        "settle_commit_authority": "qlib.backtest.position.Position.settle_commit",
+        "available_cash_authority": "qlib.backtest.position.Position.get_cash",
+        "delayed_cash_state_field": "cash_delay",
+        "delayed_cash_mode": "Position.ST_CASH",
+        "no_delay_cash_mode": "Position.ST_NO",
+        "sell_proceeds_rule": "sell_proceeds_enter_cash_delay_when_settle_type_is_cash",
+        "default_sell_proceeds_rule": "sell_proceeds_enter_cash_immediately_when_settle_type_is_none",
+        "available_cash_rule": "get_cash_excludes_cash_delay_unless_include_settle_is_true",
+        "account_value_rule": "calculate_value_includes_cash_delay",
+        "commit_rule": "settle_commit_moves_cash_delay_into_cash_and_clears_delay_state",
+        "rdagent_rule": "describe_only_do_not_redefine_cash_settlement_or_sell_proceeds_availability",
+    }
     assert prompt_payload["liquidity_capacity_semantics"] == {
         "semantic_name": "a_share_volume_capacity_limit",
         "volume_field": "$volume",
@@ -626,6 +649,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "price_adjustment_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "price_limit_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "settlement_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
+    assert "cash_settlement_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "cash_constraint_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "liquidity_capacity_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "order_unit_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
@@ -668,6 +692,37 @@ def test_ashare_cash_constraint_contract_matches_exchange_source() -> None:
     assert "max_buy_amount = self._get_buy_amount_by_cash_limit(trade_price, cash, cost_ratio)" in exchange_source
     assert "TODO: make the trading shortable" in exchange_source
     assert "position.get_sellable_amount(order.stock_id)" in exchange_source
+
+
+def test_ashare_cash_settlement_contract_matches_position_source() -> None:
+    contract = ashare_semantics.rdagent_ashare_semantic_contract()
+    cash_settlement = contract["prompt_projection_payload"]["cash_settlement_semantics"]
+    position_source = POSITION_PATH.read_text()
+
+    assert cash_settlement["semantic_name"] == "a_share_sell_proceeds_cash_settlement"
+    assert cash_settlement["settlement_authority"] == "qlib.backtest.position.Position"
+    assert cash_settlement["settle_start_authority"] == "qlib.backtest.position.Position.settle_start"
+    assert cash_settlement["settle_commit_authority"] == "qlib.backtest.position.Position.settle_commit"
+    assert cash_settlement["available_cash_authority"] == "qlib.backtest.position.Position.get_cash"
+    assert cash_settlement["delayed_cash_state_field"] == "cash_delay"
+    assert cash_settlement["delayed_cash_mode"] == "Position.ST_CASH"
+    assert cash_settlement["no_delay_cash_mode"] == "Position.ST_NO"
+    assert cash_settlement["sell_proceeds_rule"] == "sell_proceeds_enter_cash_delay_when_settle_type_is_cash"
+    assert cash_settlement["default_sell_proceeds_rule"] == (
+        "sell_proceeds_enter_cash_immediately_when_settle_type_is_none"
+    )
+    assert cash_settlement["available_cash_rule"] == "get_cash_excludes_cash_delay_unless_include_settle_is_true"
+    assert cash_settlement["account_value_rule"] == "calculate_value_includes_cash_delay"
+    assert cash_settlement["commit_rule"] == "settle_commit_moves_cash_delay_into_cash_and_clears_delay_state"
+    assert 'ST_CASH = "cash"' in position_source
+    assert 'ST_NO = "None"' in position_source
+    assert 'self.position["cash_delay"] += new_cash' in position_source
+    assert 'self.position["cash"] += new_cash' in position_source
+    assert "def get_cash(self, include_settle: bool = False)" in position_source
+    assert 'cash += self.position.get("cash_delay", 0.0)' in position_source
+    assert 'value += self.position["cash"] + self.position.get("cash_delay", 0.0)' in position_source
+    assert 'self.position["cash"] += self.position["cash_delay"]' in position_source
+    assert 'del self.position["cash_delay"]' in position_source
 
 
 def test_ashare_liquidity_capacity_contract_matches_exchange_source() -> None:
@@ -789,6 +844,10 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
     assert (
         round_tripped["prompt_projection_payload"]["cash_constraint_semantics"]["shorting_policy"]
         == "equity_short_selling_is_not_enabled"
+    )
+    assert (
+        round_tripped["prompt_projection_payload"]["cash_settlement_semantics"]["rdagent_rule"]
+        == "describe_only_do_not_redefine_cash_settlement_or_sell_proceeds_availability"
     )
     assert (
         round_tripped["prompt_projection_payload"]["liquidity_capacity_semantics"]["capacity_parameter"]
