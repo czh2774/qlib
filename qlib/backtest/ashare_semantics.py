@@ -334,6 +334,9 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "turnover_is_not_a_default_factor_input_field_even_when_qlib_reports_portfolio_turnover"
         ),
         "frequency_rule": "rdagent_factor_extraction_prompts_must_not_advertise_minute_or_intraday_data_as_default",
+        "rdagent_prompt_obligation_rule": (
+            "rdagent_factor_extraction_viability_relevance_and_implementation_prompts_must_apply_source_boundary_forbidden_defaults_and_turnover_distinction"
+        ),
         "rdagent_prompt_paths": [
             "rdagent/scenarios/qlib/factor_experiment_loader/prompts.yaml",
             "rdagent/scenarios/qlib/prompts.yaml",
