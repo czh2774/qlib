@@ -337,7 +337,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
             "RD-Agent may consume Qlib's A-share contract for research generation and evaluation context, "
             "but it must not redefine universe-membership, trading-calendar/data-frequency, trade unit, position, execution-price, "
             "price-adjustment, "
-            "suspension/tradability, price-limit, order-tradability, settlement, cash-settlement, cash/shorting, liquidity/capacity, or cost semantics."
+            "suspension/tradability, price-limit, order-tradability, order-fill, settlement, cash-settlement, cash/shorting, liquidity/capacity, or cost semantics."
         ),
         "fail_closed_on_missing_contract": True,
     }
@@ -359,6 +359,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
         in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     )
     assert "redefine_order_tradability_or_limit_checks" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
+    assert "redefine_order_fill_amount_or_clip_sequence" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     assert (
         "redefine_settlement_or_sellable_position_state" in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     )
@@ -379,6 +380,7 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
     assert "price_adjustment_semantics" in contract["rdagent_must_not_redefine"]
     assert "price_limit_semantics" in contract["rdagent_must_not_redefine"]
     assert "order_tradability_semantics" in contract["rdagent_must_not_redefine"]
+    assert "order_fill_amount_semantics" in contract["rdagent_must_not_redefine"]
     assert "settlement_semantics" in contract["rdagent_must_not_redefine"]
     assert "cash_settlement_semantics" in contract["rdagent_must_not_redefine"]
     assert "cash_constraint_semantics" in contract["rdagent_must_not_redefine"]
@@ -413,6 +415,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "universe_membership_semantics" in evidence["fingerprint_scope"]
     assert "cash_settlement_semantics" in evidence["fingerprint_scope"]
     assert "order_tradability_semantics" in evidence["fingerprint_scope"]
+    assert "order_fill_amount_semantics" in evidence["fingerprint_scope"]
     assert "qlib_contract_fingerprint" in evidence["rdagent_required_evidence_fields"]
     assert (
         "runtime_surfaces.backtest_kwargs" in strict_contract["projection_contract"]["rdagent_prompt_forbidden_fields"]
@@ -582,6 +585,32 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "decision_rule": "check_order_delegates_to_is_stock_tradable_before_deal_execution",
         "rdagent_rule": "describe_only_do_not_redefine_order_tradability_or_limit_checks",
     }
+    assert prompt_payload["order_fill_amount_semantics"] == {
+        "semantic_name": "a_share_order_fill_amount_gate",
+        "runtime_authority": "qlib.backtest.exchange.Exchange._calc_trade_info_by_order",
+        "fill_state_field": "Order.deal_amount",
+        "initial_fill_rule": "deal_amount_starts_as_order_amount_before_runtime_clips",
+        "clip_sequence": [
+            "volume_capacity_clip",
+            "sellable_position_clip",
+            "sell_cash_cost_guard",
+            "buy_cash_cost_guard",
+            "round_lot_or_full_liquidation_clip",
+        ],
+        "volume_clip_authority": "qlib.backtest.exchange.Exchange._clip_amount_by_volume",
+        "sellable_position_authority": "qlib.backtest.position.Position.get_sellable_amount",
+        "cash_authority": "qlib.backtest.position.Position.get_cash",
+        "cash_limit_authority": "qlib.backtest.exchange.Exchange._get_buy_amount_by_cash_limit",
+        "round_lot_authority": "qlib.backtest.exchange.Exchange.round_amount_by_trade_unit",
+        "factor_authority": "qlib.backtest.exchange.Exchange.get_factor",
+        "unknown_position_rule": "unknown_position_uses_round_lot_without_cash_or_sellable_clips",
+        "sell_full_liquidation_rule": (
+            "sells_equal_to_current_sellable_amount_keep_full_liquidation_without_round_lot_residual"
+        ),
+        "trade_value_rule": "trade_value_is_final_deal_amount_times_trade_price",
+        "cost_rule": "trade_cost_recomputed_after_final_deal_amount",
+        "rdagent_rule": "describe_only_do_not_redefine_order_fill_amount_or_clip_sequence",
+    }
     assert prompt_payload["settlement_semantics"] == {
         "semantic_name": "a_share_t_plus_1_stock_settlement",
         "settlement_rule": "t_plus_1_stock",
@@ -667,6 +696,7 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
     assert "price_adjustment_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "price_limit_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "order_tradability_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
+    assert "order_fill_amount_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "settlement_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "cash_settlement_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
     assert "cash_constraint_semantics" in strict_contract["projection_contract"]["rdagent_prompt_projection_fields"]
@@ -745,6 +775,48 @@ def test_ashare_order_tradability_contract_matches_exchange_source() -> None:
     )
     assert "order.deal_amount = 0.0" in exchange_source
     assert "return 0.0, 0.0, np.nan" in exchange_source
+
+
+def test_ashare_order_fill_amount_contract_matches_exchange_source() -> None:
+    contract = ashare_semantics.rdagent_ashare_semantic_contract()
+    fill_amount = contract["prompt_projection_payload"]["order_fill_amount_semantics"]
+    exchange_source = EXCHANGE_PATH.read_text()
+
+    assert fill_amount["semantic_name"] == "a_share_order_fill_amount_gate"
+    assert fill_amount["runtime_authority"] == "qlib.backtest.exchange.Exchange._calc_trade_info_by_order"
+    assert fill_amount["fill_state_field"] == "Order.deal_amount"
+    assert fill_amount["initial_fill_rule"] == "deal_amount_starts_as_order_amount_before_runtime_clips"
+    assert fill_amount["clip_sequence"] == [
+        "volume_capacity_clip",
+        "sellable_position_clip",
+        "sell_cash_cost_guard",
+        "buy_cash_cost_guard",
+        "round_lot_or_full_liquidation_clip",
+    ]
+    assert fill_amount["volume_clip_authority"] == "qlib.backtest.exchange.Exchange._clip_amount_by_volume"
+    assert fill_amount["sellable_position_authority"] == "qlib.backtest.position.Position.get_sellable_amount"
+    assert fill_amount["cash_authority"] == "qlib.backtest.position.Position.get_cash"
+    assert fill_amount["cash_limit_authority"] == "qlib.backtest.exchange.Exchange._get_buy_amount_by_cash_limit"
+    assert fill_amount["round_lot_authority"] == "qlib.backtest.exchange.Exchange.round_amount_by_trade_unit"
+    assert fill_amount["factor_authority"] == "qlib.backtest.exchange.Exchange.get_factor"
+    assert "def _calc_trade_info_by_order(" in exchange_source
+    assert "order.factor = self.get_factor(order.stock_id, order.start_time, order.end_time)" in exchange_source
+    assert "order.deal_amount = order.amount  # set to full amount and clip it step by step" in exchange_source
+    assert "self._clip_amount_by_volume(order, dealt_order_amount)" in exchange_source
+    assert (
+        "position.get_sellable_amount(order.stock_id) if position.check_stock(order.stock_id) else 0" in exchange_source
+    )
+    assert "order.deal_amount = self.round_amount_by_trade_unit(" in exchange_source
+    assert "position.get_cash() + expected_trade_val < expected_trade_cost" in exchange_source
+    assert "cash = position.get_cash()" in exchange_source
+    assert "cash < max(trade_val * cost_ratio, self.min_cost)" in exchange_source
+    assert "max_buy_amount = self._get_buy_amount_by_cash_limit(trade_price, cash, cost_ratio)" in exchange_source
+    assert "order.deal_amount = self.round_amount_by_trade_unit(order.deal_amount, order.factor)" in exchange_source
+    assert "trade_val = order.deal_amount * trade_price" in exchange_source
+    assert "trade_cost = self._calculate_trade_cost(order.direction, trade_val, cost_ratio, adj_cost_ratio)" in (
+        exchange_source
+    )
+    assert "return trade_price, trade_val, trade_cost" in exchange_source
 
 
 def test_ashare_cash_settlement_contract_matches_position_source() -> None:
@@ -897,6 +969,14 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
     assert (
         round_tripped["prompt_projection_payload"]["order_tradability_semantics"]["runtime_authority"]
         == "qlib.backtest.exchange.Exchange.check_order"
+    )
+    assert (
+        round_tripped["prompt_projection_payload"]["order_fill_amount_semantics"]["rdagent_rule"]
+        == "describe_only_do_not_redefine_order_fill_amount_or_clip_sequence"
+    )
+    assert (
+        round_tripped["prompt_projection_payload"]["order_fill_amount_semantics"]["runtime_authority"]
+        == "qlib.backtest.exchange.Exchange._calc_trade_info_by_order"
     )
     assert round_tripped["prompt_projection_payload"]["settlement_semantics"]["settlement_rule"] == "t_plus_1_stock"
     assert (
