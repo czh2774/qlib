@@ -32,7 +32,7 @@ python get_data.py qlib_data --target_dir ~/.qlib/qlib_data/us_data --region us
 ### Download CN Smoke Fixture Data
 
 ```bash
-python get_data.py qlib_data --name qlib_provider_smoke_fixture_unbound --target_dir ~/.qlib/qlib_data/provider_smoke_fixture_unbound --region cn
+python get_data.py qlib_data --name qlib_data --target_dir ~/.qlib/qlib_data/cn_data --region cn
 ```
 
 ### Help

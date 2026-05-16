@@ -7,7 +7,7 @@ from pathlib import Path
 
 import qlib
 from qlib.data import D
-from qlib.tests.data import GetData, SMOKE_FIXTURE_DATASET_NAME
+from qlib.tests.data import GetData, QLIB_DATASET_NAME
 
 DATA_DIR = Path(__file__).parent.joinpath("test_get_data")
 SOURCE_DIR = DATA_DIR.joinpath("source")
@@ -34,7 +34,7 @@ class TestGetData(unittest.TestCase):
 
     def test_0_qlib_data(self):
         GetData().qlib_data(
-            name=SMOKE_FIXTURE_DATASET_NAME,
+            name=QLIB_DATASET_NAME,
             target_dir=QLIB_DIR,
             region="cn",
             interval="1d",

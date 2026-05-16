@@ -103,19 +103,18 @@ def _load_pit_collector_module(monkeypatch):
     return module
 
 
-def test_smoke_fixture_name_maps_to_public_archive_stem(monkeypatch) -> None:
+def test_default_dataset_name_maps_to_standard_public_archive_stem(monkeypatch) -> None:
     module = _load_get_data_module(monkeypatch)
-    archive_stem = "".join(("qlib", "_data", "_simple"))
 
     file_name = module.GetData.qlib_data_file_name(
-        name=module.SMOKE_FIXTURE_DATASET_NAME,
+        name=module.QLIB_DATASET_NAME,
         version=None,
         interval="1d",
         region="cn",
         qlib_version="latest",
     )
 
-    assert file_name == f"v2/{archive_stem}_cn_1d_latest.zip"
+    assert file_name == "v2/qlib_data_cn_1d_latest.zip"
 
 
 def test_pit_normalize_accepts_local_calendar_without_external_fetch(monkeypatch) -> None:

@@ -11,7 +11,7 @@ import pandas as pd
 from pathlib import Path
 
 from qlib.data import D
-from qlib.tests.data import GetData, QLIB_DATASET_NAME, SMOKE_FIXTURE_DATASET_NAME
+from qlib.tests.data import GetData, QLIB_DATASET_NAME
 
 sys.path.append(str(Path(__file__).resolve().parent.parent.joinpath("scripts")))
 from dump_pit import DumpPitData
@@ -47,7 +47,7 @@ class TestPIT(unittest.TestCase):
         pit_dir = str(SOURCE_DIR.joinpath("pit").resolve())
         pit_normalized_dir = str(SOURCE_DIR.joinpath("pit_normalized").resolve())
         GetData().qlib_data(
-            name=SMOKE_FIXTURE_DATASET_NAME,
+            name=QLIB_DATASET_NAME,
             target_dir=cn_data_dir,
             region="cn",
             delete_old=False,

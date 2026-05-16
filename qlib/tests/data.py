@@ -16,14 +16,6 @@ from loguru import logger
 from qlib.utils import exists_qlib_data
 
 QLIB_DATASET_NAME = "qlib_data"
-SMOKE_FIXTURE_DATASET_NAME = "qlib_provider_smoke_fixture_unbound"
-_SMOKE_FIXTURE_REMOTE_DATASET_NAME = "".join(("qlib", "_data", "_simple"))
-
-
-def resolve_qlib_dataset_name_for_download(name: str) -> str:
-    if name == SMOKE_FIXTURE_DATASET_NAME:
-        return _SMOKE_FIXTURE_REMOTE_DATASET_NAME
-    return name
 
 
 class GetData:
@@ -130,8 +122,7 @@ class GetData:
     @staticmethod
     def qlib_data_file_name(name: str, version: Optional[str], interval: str, region: str, qlib_version: str) -> str:
         dataset_version = "v2" if version is None else version
-        download_name = resolve_qlib_dataset_name_for_download(name)
-        return f"{dataset_version}/{download_name}_{region.lower()}_{interval.lower()}_{qlib_version}.zip"
+        return f"{dataset_version}/{name}_{region.lower()}_{interval.lower()}_{qlib_version}.zip"
 
     @staticmethod
     def _unzip(file_path: [Path, str], target_dir: [Path, str], delete_old: bool = True):
@@ -184,8 +175,7 @@ class GetData:
         target_dir: str
             data save directory
         name: str
-            dataset name, value from [qlib_data, qlib_provider_smoke_fixture_unbound], by default qlib_data.
-            qlib_provider_smoke_fixture_unbound is an explicit unbound test/smoke fixture.
+            dataset name, value from [qlib_data], by default qlib_data.
         version: str
             data version, value from [v1, ...], by default None(use script to specify version)
         interval: str

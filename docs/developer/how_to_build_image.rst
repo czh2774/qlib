@@ -51,7 +51,7 @@ How to use qlib images
 
 .. code-block:: bash
 
-    >>> python scripts/get_data.py qlib_data --name qlib_provider_smoke_fixture_unbound --target_dir ~/.qlib/qlib_data/provider_smoke_fixture_unbound --interval 1d --region cn
+    >>> python scripts/get_data.py qlib_data --name qlib_data --target_dir ~/.qlib/qlib_data/cn_data --interval 1d --region cn
     >>> python qlib/cli/run.py examples/benchmarks/LightGBM/workflow_config_lightgbm_Alpha158.yaml
 
 3. Exit the container

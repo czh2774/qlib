@@ -37,7 +37,7 @@ class JoinQuantAshareBacktestPolicy:
     This is intentionally small and data-driven. If provider data includes
     Tushare-style up_limit/down_limit fields, those authoritative daily bounds
     drive tradability. If the fields are absent and mode is "auto", a board
-    fallback is used only so legacy/simple Qlib datasets remain runnable.
+    fallback is used only so legacy compact Qlib datasets remain runnable.
     """
 
     trade_unit: int = 100

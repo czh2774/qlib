@@ -44,7 +44,7 @@ jobs:
 
     - name: Downloads dependencies data
       run: |
-        python scripts/get_data.py qlib_data --name qlib_provider_smoke_fixture_unbound --target_dir ~/.qlib/qlib_data/provider_smoke_fixture_unbound --interval 1d --region cn
+        python scripts/get_data.py qlib_data --name qlib_data --target_dir ~/.qlib/qlib_data/cn_data --interval 1d --region cn
 
     - name: Install Lightgbm for MacOS
       if: ${{ matrix.os == 'macos-14' || matrix.os == 'macos-15' }}

@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 import io
 
-from .data import GetData, QLIB_DATASET_NAME, SMOKE_FIXTURE_DATASET_NAME
+from .data import GetData, QLIB_DATASET_NAME
 from .. import init
 from ..constant import REG_CN, REG_TW
 from qlib.data.filter import NameDFilter
@@ -15,18 +15,15 @@ from qlib.data.storage import CalendarStorage, InstrumentStorage, FeatureStorage
 
 class TestAutoData(unittest.TestCase):
     _setup_kwargs = {}
-    provider_uri = "~/.qlib/qlib_data/provider_smoke_fixture_unbound"  # target_dir
+    provider_uri = "~/.qlib/qlib_data/cn_data"  # target_dir
     provider_uri_1day = "~/.qlib/qlib_data/cn_data"  # target_dir
     provider_uri_1min = "~/.qlib/qlib_data/cn_data_1min"
 
     @classmethod
-    def setUpClass(cls, enable_1d_type="smoke_fixture", enable_1min=False) -> None:
+    def setUpClass(cls, enable_1d_type="full", enable_1min=False) -> None:
         # use default data
 
-        if enable_1d_type in {"smoke_fixture", "simple"}:
-            provider_uri_day = cls.provider_uri
-            name_day = SMOKE_FIXTURE_DATASET_NAME
-        elif enable_1d_type == "full":
+        if enable_1d_type == "full":
             provider_uri_day = cls.provider_uri_1day
             name_day = QLIB_DATASET_NAME
         else:
@@ -63,7 +60,7 @@ class TestAutoData(unittest.TestCase):
 
 class TestOperatorData(TestAutoData):
     @classmethod
-    def setUpClass(cls, enable_1d_type="smoke_fixture", enable_1min=False) -> None:
+    def setUpClass(cls, enable_1d_type="full", enable_1min=False) -> None:
         # use default data
         super().setUpClass(enable_1d_type, enable_1min)
         nameDFilter = NameDFilter(name_rule_re="SH600110")

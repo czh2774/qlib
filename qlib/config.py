@@ -155,7 +155,7 @@ _default_config = {
     # cache
     "expression_cache": None,
     "calendar_cache": None,
-    # for simple dataset cache
+    # local dataset cache path
     "local_cache_path": None,
     # kernels can be a fixed value or a callable function lie `def (freq: str) -> int`
     # If the kernels are arctic_kernels, `min(NUM_USABLE_CPU, 30)` may be a good value
