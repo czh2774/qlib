@@ -415,6 +415,10 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
         in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     )
     assert (
+        "emit_partial_feedback_metric_comparison_or_use_non_qlib_metric_rows"
+        in contract["semantic_boundary"]["rdagent_forbidden_actions"]
+    )
+    assert (
         "redefine_benchmark_return_series_or_default_benchmark"
         in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     )
@@ -1082,6 +1086,11 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
             "1day.excess_return_with_cost.annualized_return",
             "1day.excess_return_with_cost.max_drawdown",
         ],
+        "feedback_comparison_metric_paths": [
+            "IC",
+            "1day.excess_return_with_cost.annualized_return",
+            "1day.excess_return_with_cost.max_drawdown",
+        ],
         "bandit_metric_paths": [
             "IC",
             "ICIR",
@@ -1110,6 +1119,15 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         ),
         "sota_primary_metric_missing_rule": (
             "missing_sota_feedback_primary_metric_allows_valid_current_result_as_candidate"
+        ),
+        "feedback_comparison_result_rule": (
+            "current_and_sota_feedback_comparison_must_use_exact_qlib_feedback_metric_paths"
+        ),
+        "feedback_comparison_missing_failure": (
+            "missing_feedback_comparison_metric_path_fails_closed_without_partial_comparison"
+        ),
+        "feedback_comparison_invalid_failure": (
+            "non_numeric_or_non_finite_feedback_comparison_metric_fails_closed_without_partial_comparison"
         ),
         "derived_bandit_utility_name": "drawdown_adjusted_return",
         "derived_bandit_utility_rule": (
@@ -2722,6 +2740,11 @@ def test_ashare_feedback_metric_contract_matches_runtime_sources() -> None:
         "1day.excess_return_with_cost.annualized_return",
         "1day.excess_return_with_cost.max_drawdown",
     ]
+    assert feedback_metric["feedback_comparison_metric_paths"] == [
+        "IC",
+        "1day.excess_return_with_cost.annualized_return",
+        "1day.excess_return_with_cost.max_drawdown",
+    ]
     assert feedback_metric["bandit_metric_paths"] == [
         "IC",
         "ICIR",
@@ -2759,6 +2782,15 @@ def test_ashare_feedback_metric_contract_matches_runtime_sources() -> None:
     assert (
         feedback_metric["sota_primary_metric_missing_rule"]
         == "missing_sota_feedback_primary_metric_allows_valid_current_result_as_candidate"
+    )
+    assert feedback_metric["feedback_comparison_result_rule"] == (
+        "current_and_sota_feedback_comparison_must_use_exact_qlib_feedback_metric_paths"
+    )
+    assert feedback_metric["feedback_comparison_missing_failure"] == (
+        "missing_feedback_comparison_metric_path_fails_closed_without_partial_comparison"
+    )
+    assert feedback_metric["feedback_comparison_invalid_failure"] == (
+        "non_numeric_or_non_finite_feedback_comparison_metric_fails_closed_without_partial_comparison"
     )
     assert feedback_metric["derived_bandit_utility_name"] == "drawdown_adjusted_return"
     assert feedback_metric["bandit_feature_vector_fields"] == [
@@ -3479,6 +3511,22 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
         round_tripped["prompt_projection_payload"]["feedback_metric_semantics"]["sota_primary_metric_missing_rule"]
         == "missing_sota_feedback_primary_metric_allows_valid_current_result_as_candidate"
     )
+    assert round_tripped["prompt_projection_payload"]["feedback_metric_semantics"][
+        "feedback_comparison_metric_paths"
+    ] == [
+        "IC",
+        "1day.excess_return_with_cost.annualized_return",
+        "1day.excess_return_with_cost.max_drawdown",
+    ]
+    assert round_tripped["prompt_projection_payload"]["feedback_metric_semantics"][
+        "feedback_comparison_result_rule"
+    ] == "current_and_sota_feedback_comparison_must_use_exact_qlib_feedback_metric_paths"
+    assert round_tripped["prompt_projection_payload"]["feedback_metric_semantics"][
+        "feedback_comparison_missing_failure"
+    ] == "missing_feedback_comparison_metric_path_fails_closed_without_partial_comparison"
+    assert round_tripped["prompt_projection_payload"]["feedback_metric_semantics"][
+        "feedback_comparison_invalid_failure"
+    ] == "non_numeric_or_non_finite_feedback_comparison_metric_fails_closed_without_partial_comparison"
     assert round_tripped["prompt_projection_payload"]["feedback_metric_semantics"]["bandit_reward_objective"] == (
         "drawdown_adjusted_return"
     )
