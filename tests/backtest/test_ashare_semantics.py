@@ -411,6 +411,10 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
         in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     )
     assert (
+        "bypass_feedback_primary_metric_with_llm_feedback_decision"
+        in contract["semantic_boundary"]["rdagent_forbidden_actions"]
+    )
+    assert (
         "redefine_benchmark_return_series_or_default_benchmark"
         in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     )
@@ -1095,6 +1099,18 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         "bandit_metric_extraction_rule": "required_bandit_metrics_must_be_present_numeric_and_finite",
         "bandit_metric_missing_failure": "missing_bandit_metric_path_fails_closed_without_zero_default",
         "bandit_metric_invalid_failure": "non_numeric_or_non_finite_bandit_metric_fails_closed_without_zero_default",
+        "explicit_feedback_decision_rule": (
+            "explicit_llm_feedback_decision_must_match_feedback_primary_metric_improvement"
+        ),
+        "feedback_primary_metric_missing_failure": (
+            "missing_current_feedback_primary_metric_fails_closed_without_llm_decision_fallback"
+        ),
+        "feedback_primary_metric_invalid_failure": (
+            "non_numeric_or_non_finite_feedback_primary_metric_fails_closed_without_llm_decision_fallback"
+        ),
+        "sota_primary_metric_missing_rule": (
+            "missing_sota_feedback_primary_metric_allows_valid_current_result_as_candidate"
+        ),
         "derived_bandit_utility_name": "drawdown_adjusted_return",
         "derived_bandit_utility_rule": (
             "rdagent_may_compute_annualized_excess_return_with_cost_over_abs_max_drawdown_as_derived_utility_not_qlib_metric"
@@ -2731,6 +2747,19 @@ def test_ashare_feedback_metric_contract_matches_runtime_sources() -> None:
     assert feedback_metric["bandit_metric_invalid_failure"] == (
         "non_numeric_or_non_finite_bandit_metric_fails_closed_without_zero_default"
     )
+    assert feedback_metric["explicit_feedback_decision_rule"] == (
+        "explicit_llm_feedback_decision_must_match_feedback_primary_metric_improvement"
+    )
+    assert feedback_metric["feedback_primary_metric_missing_failure"] == (
+        "missing_current_feedback_primary_metric_fails_closed_without_llm_decision_fallback"
+    )
+    assert feedback_metric["feedback_primary_metric_invalid_failure"] == (
+        "non_numeric_or_non_finite_feedback_primary_metric_fails_closed_without_llm_decision_fallback"
+    )
+    assert (
+        feedback_metric["sota_primary_metric_missing_rule"]
+        == "missing_sota_feedback_primary_metric_allows_valid_current_result_as_candidate"
+    )
     assert feedback_metric["derived_bandit_utility_name"] == "drawdown_adjusted_return"
     assert feedback_metric["bandit_feature_vector_fields"] == [
         "ic",
@@ -3437,6 +3466,19 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
     assert round_tripped["prompt_projection_payload"]["feedback_metric_semantics"][
         "bandit_metric_invalid_failure"
     ] == "non_numeric_or_non_finite_bandit_metric_fails_closed_without_zero_default"
+    assert round_tripped["prompt_projection_payload"]["feedback_metric_semantics"][
+        "explicit_feedback_decision_rule"
+    ] == "explicit_llm_feedback_decision_must_match_feedback_primary_metric_improvement"
+    assert round_tripped["prompt_projection_payload"]["feedback_metric_semantics"][
+        "feedback_primary_metric_missing_failure"
+    ] == "missing_current_feedback_primary_metric_fails_closed_without_llm_decision_fallback"
+    assert round_tripped["prompt_projection_payload"]["feedback_metric_semantics"][
+        "feedback_primary_metric_invalid_failure"
+    ] == "non_numeric_or_non_finite_feedback_primary_metric_fails_closed_without_llm_decision_fallback"
+    assert (
+        round_tripped["prompt_projection_payload"]["feedback_metric_semantics"]["sota_primary_metric_missing_rule"]
+        == "missing_sota_feedback_primary_metric_allows_valid_current_result_as_candidate"
+    )
     assert round_tripped["prompt_projection_payload"]["feedback_metric_semantics"]["bandit_reward_objective"] == (
         "drawdown_adjusted_return"
     )

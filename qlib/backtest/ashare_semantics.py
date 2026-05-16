@@ -861,6 +861,16 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
         "bandit_metric_extraction_rule": "required_bandit_metrics_must_be_present_numeric_and_finite",
         "bandit_metric_missing_failure": "missing_bandit_metric_path_fails_closed_without_zero_default",
         "bandit_metric_invalid_failure": "non_numeric_or_non_finite_bandit_metric_fails_closed_without_zero_default",
+        "explicit_feedback_decision_rule": (
+            "explicit_llm_feedback_decision_must_match_feedback_primary_metric_improvement"
+        ),
+        "feedback_primary_metric_missing_failure": (
+            "missing_current_feedback_primary_metric_fails_closed_without_llm_decision_fallback"
+        ),
+        "feedback_primary_metric_invalid_failure": (
+            "non_numeric_or_non_finite_feedback_primary_metric_fails_closed_without_llm_decision_fallback"
+        ),
+        "sota_primary_metric_missing_rule": "missing_sota_feedback_primary_metric_allows_valid_current_result_as_candidate",
         "derived_bandit_utility_name": "drawdown_adjusted_return",
         "derived_bandit_utility_rule": (
             "rdagent_may_compute_annualized_excess_return_with_cost_over_abs_max_drawdown_as_derived_utility_not_qlib_metric"
@@ -1098,6 +1108,7 @@ def rdagent_ashare_semantic_contract(*, strict_price_limit: bool = True) -> dict
             "redefine_portfolio_risk_analysis_metrics",
             "redefine_benchmark_relative_excess_return_or_cost_treatment",
             "redefine_feedback_metric_paths_or_label_derived_utility_as_qlib_metric",
+            "bypass_feedback_primary_metric_with_llm_feedback_decision",
             "redefine_benchmark_return_series_or_default_benchmark",
             "redefine_universe_benchmark_template_binding_or_cross_alias_market_and_benchmark",
             "redefine_strategy_benchmark_documentation_or_use_cross_market_index_example",
