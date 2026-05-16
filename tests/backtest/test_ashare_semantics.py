@@ -419,6 +419,10 @@ def test_rdagent_ashare_contract_declares_qlib_authority_boundary() -> None:
         in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     )
     assert (
+        "render_trace_prompt_with_raw_result_frame_or_inline_metric_slice"
+        in contract["semantic_boundary"]["rdagent_forbidden_actions"]
+    )
+    assert (
         "render_model_feedback_prompt_with_raw_result_frame_or_partial_metric_slice"
         in contract["semantic_boundary"]["rdagent_forbidden_actions"]
     )
@@ -1085,6 +1089,11 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
             "1day.excess_return_without_cost.annualized_return",
             "1day.excess_return_without_cost.max_drawdown",
         ],
+        "trace_prompt_metric_paths": [
+            "IC",
+            "1day.excess_return_without_cost.annualized_return",
+            "1day.excess_return_without_cost.max_drawdown",
+        ],
         "feedback_metric_paths": [
             "IC",
             "1day.excess_return_with_cost.annualized_return",
@@ -1137,6 +1146,15 @@ def test_rdagent_ashare_contract_declares_evidence_and_prompt_projection_boundar
         ),
         "feedback_comparison_invalid_failure": (
             "non_numeric_or_non_finite_feedback_comparison_metric_fails_closed_without_partial_comparison"
+        ),
+        "trace_prompt_result_rule": (
+            "trace_prompts_must_project_exact_qlib_prompt_metric_paths_before_template_rendering"
+        ),
+        "trace_prompt_missing_failure": (
+            "missing_trace_prompt_metric_path_fails_closed_without_partial_prompt_projection"
+        ),
+        "trace_prompt_invalid_failure": (
+            "non_numeric_or_non_finite_trace_prompt_metric_fails_closed_without_partial_prompt_projection"
         ),
         "model_feedback_prompt_result_rule": (
             "model_feedback_prompts_must_project_exact_qlib_feedback_metric_paths_before_prompt_rendering"
@@ -2753,6 +2771,11 @@ def test_ashare_feedback_metric_contract_matches_runtime_sources() -> None:
         "1day.excess_return_without_cost.annualized_return",
         "1day.excess_return_without_cost.max_drawdown",
     ]
+    assert feedback_metric["trace_prompt_metric_paths"] == [
+        "IC",
+        "1day.excess_return_without_cost.annualized_return",
+        "1day.excess_return_without_cost.max_drawdown",
+    ]
     assert feedback_metric["feedback_metric_paths"] == [
         "IC",
         "1day.excess_return_with_cost.annualized_return",
@@ -3559,6 +3582,23 @@ def test_rdagent_ashare_contract_is_machine_readable_json() -> None:
     assert round_tripped["prompt_projection_payload"]["feedback_metric_semantics"][
         "feedback_comparison_invalid_failure"
     ] == "non_numeric_or_non_finite_feedback_comparison_metric_fails_closed_without_partial_comparison"
+    assert round_tripped["prompt_projection_payload"]["feedback_metric_semantics"]["trace_prompt_metric_paths"] == [
+        "IC",
+        "1day.excess_return_without_cost.annualized_return",
+        "1day.excess_return_without_cost.max_drawdown",
+    ]
+    assert (
+        round_tripped["prompt_projection_payload"]["feedback_metric_semantics"]["trace_prompt_result_rule"]
+        == "trace_prompts_must_project_exact_qlib_prompt_metric_paths_before_template_rendering"
+    )
+    assert (
+        round_tripped["prompt_projection_payload"]["feedback_metric_semantics"]["trace_prompt_missing_failure"]
+        == "missing_trace_prompt_metric_path_fails_closed_without_partial_prompt_projection"
+    )
+    assert (
+        round_tripped["prompt_projection_payload"]["feedback_metric_semantics"]["trace_prompt_invalid_failure"]
+        == "non_numeric_or_non_finite_trace_prompt_metric_fails_closed_without_partial_prompt_projection"
+    )
     assert round_tripped["prompt_projection_payload"]["feedback_metric_semantics"][
         "model_feedback_prompt_metric_paths"
     ] == [
