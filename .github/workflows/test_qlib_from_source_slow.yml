@@ -1,29 +1,24 @@
 name: Test qlib from source slow
 
 on:
+  workflow_dispatch:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
-    paths-ignore:
-      - "qlib/backtest/ashare_semantics.py"
-      - "tests/backtest/test_ashare_semantics.py"
-      - ".github/workflows/internal_ashare_semantics.yml"
-      - ".github/workflows/test_qlib_from_pip.yml"
-      - ".github/workflows/test_qlib_from_source.yml"
-      - ".github/workflows/test_qlib_from_source_slow.yml"
+
+concurrency:
+  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.ref }}
 
 jobs:
   build:
     timeout-minutes: 720
     # we may retry for 3 times for `Unit tests with Pytest`
 
-    runs-on: ${{ matrix.os }}
+    runs-on: [self-hosted, macOS, ARM64, m4-stable, m4-32g, app020-ci]
     strategy:
+      max-parallel: 3
       matrix:
-        os: [windows-latest, ubuntu-24.04, ubuntu-22.04, macos-14, macos-15]
         # In github action, using python 3.7, pip install will not match the latest version of the package.
-        # Also, python 3.7 is no longer supported from macos-14, and will be phased out from macos-13 in the near future.
         # All things considered, we have removed python 3.7.
         python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
 
@@ -34,7 +29,7 @@ jobs:
         fetch-depth: 0
 
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
 
@@ -47,7 +42,6 @@ jobs:
         python scripts/get_data.py qlib_data --name qlib_data --target_dir ~/.qlib/qlib_data/cn_data --interval 1d --region cn
 
     - name: Install Lightgbm for MacOS
-      if: ${{ matrix.os == 'macos-14' || matrix.os == 'macos-15' }}
       run: |
         brew update
         brew install libomp || brew reinstall libomp

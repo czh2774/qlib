@@ -1,0 +1,10 @@
+self-hosted-runner:
+  labels:
+    - self-hosted
+    - macOS
+    - ARM64
+    - m4
+    - m4-stable
+    - m4-32g
+    - app020-ci
+    - app020-docker
